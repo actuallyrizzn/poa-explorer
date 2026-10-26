@@ -1,0 +1,6 @@
+/cache/
+/tools/design-smoke/out/
+/tests/.phpunit.cache/
+/tests/coverage/
+*.bak
+
