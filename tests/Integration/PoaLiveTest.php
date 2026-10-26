@@ -51,4 +51,13 @@ final class PoaLiveTest extends TestCase
         $row = poa_json_get('/api/explorer/tx/not-a-route-zzzz');
         $this->assertNotNull($row['_error']);
     }
+
+    public function testEpochs(): void
+    {
+        $row = poa_epochs();
+        $this->assertEmpty($row['_error']);
+        $this->assertIsArray($row['body']);
+        $this->assertNotEmpty($row['body']);
+        $this->assertArrayHasKey('epoch', $row['body'][0]);
+    }
 }

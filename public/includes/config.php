@@ -16,8 +16,8 @@ function poa_origin(): string
     }
     return POA_EXPLORER_ORIGIN;
 }
-const POA_EXPLORER_UA = 'PoA-Explorer/0.1 (read-only; poa.explorer.zero1.network pending)';
-const POA_EXPLORER_TIMEOUT = 12;
+const POA_EXPLORER_UA = 'PoA-Explorer/0.2 (read-only; https://poa.explorer.zero1.network)';
+const POA_EXPLORER_TIMEOUT = 20;
 const POA_EXPLORER_CACHE_TTL = 45;
 const POA_EXPLORER_RECENT_TX_LIMIT = 40;
 const POA_EXPLORER_ANCHOR_LIMIT = 40;

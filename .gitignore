@@ -3,4 +3,7 @@
 /tests/.phpunit.cache/
 /tests/coverage/
 *.bak
+__pycache__/
+*.pyc
+.otto-githooks-installed
 

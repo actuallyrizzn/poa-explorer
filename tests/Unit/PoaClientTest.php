@@ -73,4 +73,17 @@ final class PoaClientTest extends TestCase
     {
         $this->assertStringContainsString('poa-explorer-cache', poa_cache_dir());
     }
+
+    public function testJsonPayload(): void
+    {
+        $ok = poa_json_payload(['body' => ['a' => 1], '_cache' => 'fresh']);
+        $this->assertTrue($ok['ok']);
+        $this->assertNull($ok['error']);
+        $this->assertSame(['a' => 1], $ok['body']);
+        $bad = poa_json_payload(['_error' => 'nope', 'body' => null, '_cache' => 'miss']);
+        $this->assertFalse($bad['ok']);
+        $this->assertSame('nope', $bad['error']);
+        $emptyErr = poa_json_payload(['_error' => '', 'body' => []]);
+        $this->assertTrue($emptyErr['ok']);
+    }
 }

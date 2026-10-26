@@ -36,6 +36,7 @@ function poa_layout_start(string $title, string $nav = 'home'): void
     <nav>
       <a href="index.php"<?php echo $nav === 'home' ? ' aria-current="page"' : ''; ?>>Tip</a>
       <a href="checkpoint.php"<?php echo $nav === 'checkpoint' ? ' aria-current="page"' : ''; ?>>Checkpoints</a>
+      <a href="docs.php"<?php echo $nav === 'docs' ? ' aria-current="page"' : ''; ?>>Docs</a>
     </nav>
   </header>
   <div class="lab-banner" role="status">
@@ -59,7 +60,7 @@ function poa_layout_end(?array $meta = null): void
     ?>
   </main>
   <footer>
-    <p>poa-explorer · patterned after laser-explorer · public JSON only · never /api/hosted</p>
+    <p>poa-explorer · patterned after laser-explorer · public JSON only · never /api/hosted · <a href="docs.php">docs</a> · code AGPLv3 · docs CC BY-SA 4.0</p>
     <?php if ($asOf || $src || $cache): ?>
       <p><?php
         $bits = [];

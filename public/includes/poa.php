@@ -178,17 +178,48 @@ function poa_status(): array
     return $row;
 }
 
-function poa_recent_txs(): array
+function poa_json_payload(array $row): array
+{
+    $err = $row['_error'] ?? null;
+    if ($err === '') {
+        $err = null;
+    }
+    return [
+        'ok' => $err === null,
+        'error' => $err,
+        'cache' => $row['_cache'] ?? null,
+        'body' => $row['body'] ?? null,
+    ];
+}
+
+function poa_json_out(array $row, int $errorHttp = 400): void
+{
+    $payload = poa_json_payload($row);
+    header('Content-Type: application/json; charset=UTF-8');
+    header('Cache-Control: no-store');
+    header('Access-Control-Allow-Origin: *');
+    http_response_code($payload['ok'] ? 200 : $errorHttp);
+    echo json_encode($payload, JSON_UNESCAPED_SLASHES);
+}
+
+function poa_recent_txs_row(): array
 {
     $row = poa_json_get('/api/explorer/txs');
     $body = $row['body'];
+    $list = [];
     if (is_array($body) && isset($body[0]) && is_array($body[0])) {
-        return array_slice($body, 0, POA_EXPLORER_RECENT_TX_LIMIT);
+        $list = array_slice($body, 0, POA_EXPLORER_RECENT_TX_LIMIT);
+    } elseif (is_array($body) && isset($body['valid']) && is_array($body['valid'])) {
+        $list = array_slice($body['valid'], 0, POA_EXPLORER_RECENT_TX_LIMIT);
     }
-    if (is_array($body) && isset($body['valid']) && is_array($body['valid'])) {
-        return array_slice($body['valid'], 0, POA_EXPLORER_RECENT_TX_LIMIT);
-    }
-    return [];
+    $row['body'] = $list;
+    return $row;
+}
+
+function poa_recent_txs(): array
+{
+    $body = poa_recent_txs_row()['body'];
+    return is_array($body) ? $body : [];
 }
 
 function poa_tx(string $id): array
@@ -207,17 +238,35 @@ function poa_address(string $addr): array
     return poa_json_get('/api/explorer/address/' . $addr);
 }
 
-function poa_anchors(): array
+function poa_anchors_row(): array
 {
     $row = poa_json_get('/api/anchors');
     $body = $row['body'];
     if (!is_array($body) || !isset($body[0]) || !is_array($body[0])) {
-        return [];
+        $row['body'] = [];
+        return $row;
     }
     usort($body, static function ($a, $b) {
         return ((int) ($b['height'] ?? 0)) <=> ((int) ($a['height'] ?? 0));
     });
-    return array_slice($body, 0, POA_EXPLORER_ANCHOR_LIMIT);
+    $row['body'] = array_slice($body, 0, POA_EXPLORER_ANCHOR_LIMIT);
+    return $row;
+}
+
+function poa_anchors(): array
+{
+    $body = poa_anchors_row()['body'];
+    return is_array($body) ? $body : [];
+}
+
+function poa_epochs(): array
+{
+    return poa_json_get('/api/epochs');
+}
+
+function poa_challenges(): array
+{
+    return poa_json_get('/api/challenge-index');
 }
 
 function poa_tx_list_from_address(array $addrBody): array

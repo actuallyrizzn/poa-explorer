@@ -35,6 +35,14 @@ if ($path === '/api/anchors') {
     echo '[]';
     exit;
 }
+if ($path === '/api/epochs') {
+    echo json_encode([['epoch' => 0, 'note' => 'fixture']], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+if ($path === '/api/challenge-index') {
+    echo json_encode(['chain_id' => 'poa-fixture', 'answers' => []], JSON_UNESCAPED_SLASHES);
+    exit;
+}
 
 http_response_code(404);
 echo '{"error":"missing"}';

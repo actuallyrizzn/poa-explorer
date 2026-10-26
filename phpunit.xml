@@ -15,6 +15,7 @@
   <source>
     <include>
       <directory>public/includes</directory>
+      <directory>sdk/php</directory>
     </include>
     <exclude>
       <file>public/includes/layout.php</file>

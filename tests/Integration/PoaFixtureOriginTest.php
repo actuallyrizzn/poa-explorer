@@ -48,6 +48,18 @@ final class PoaFixtureOriginTest extends TestCase
     {
         $this->assertSame([['id' => 'abc', 'type' => 'x']], poa_recent_txs());
         $this->assertSame([], poa_anchors());
+        $this->assertSame([['id' => 'abc', 'type' => 'x']], poa_recent_txs_row()['body']);
+        $this->assertSame([], poa_anchors_row()['body']);
+    }
+
+    public function testEpochsAndChallenges(): void
+    {
+        $epochs = poa_epochs();
+        $this->assertNull($epochs['_error']);
+        $this->assertSame(0, $epochs['body'][0]['epoch']);
+        $ch = poa_challenges();
+        $this->assertNull($ch['_error']);
+        $this->assertSame('poa-fixture', $ch['body']['chain_id']);
     }
 
     public function testErrorBodies(): void

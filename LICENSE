@@ -1,0 +1,27 @@
+DUAL LICENSE NOTICE
+
+This project is distributed under a dual license structure:
+
+1. SOFTWARE CODE (PHP, Python, CSS, HTML templates, tests, OpenAPI, scripts, SDKs, SMCP plugin, etc.)
+   Licensed under: GNU Affero General Public License v3.0 (AGPL-3.0)
+   See: LICENSE-AGPLv3
+
+2. DOCUMENTATION AND OTHER CONTENT (README, docs/*.md, public/llms.txt prose, images)
+   Licensed under: Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+   See: LICENSE-CC-BY-SA
+
+SOFTWARE CODE includes but is not limited to:
+- PHP, Python, JavaScript, CSS, SQL
+- Tests, configuration, OpenAPI, build scripts
+- SDKs under sdk/ and the SMCP plugin under smcp_plugin/
+
+DOCUMENTATION AND OTHER CONTENT includes but is not limited to:
+- README and docs/*.md
+- Human/agent prose on the site (docs.php copy, llms.txt)
+- Images
+
+For complete terms:
+- LICENSE-AGPLv3 (code)
+- LICENSE-CC-BY-SA (documentation and other non-code content)
+
+Copyright (c) 2026 Decision Science Corp

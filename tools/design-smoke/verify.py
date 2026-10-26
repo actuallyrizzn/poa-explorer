@@ -136,6 +136,21 @@ def main() -> int:
                 page.goto(base + "/search.php?q=" + urllib.parse.quote(KODA_ADDR), wait_until="domcontentloaded", timeout=45000)
                 if "address.php" not in page.url:
                     raise AssertionError("search did not route address")
+
+                page.set_viewport_size(DESKTOP)
+                page.goto(base + "/docs.php", wait_until="domcontentloaded", timeout=45000)
+                dbody = page.inner_text("body")
+                if "json api" not in dbody.lower():
+                    shot(page, "docs-debug")
+                    raise AssertionError("docs page missing API section: " + repr(dbody[:800]))
+                if "/api/hosted" not in dbody.lower() and "never /api/hosted" not in dbody.lower():
+                    pass
+                if "no wallet" not in dbody.lower():
+                    raise AssertionError("docs missing no-wallet bound")
+                shot(page, "docs-desktop")
+                page.set_viewport_size(MOBILE)
+                page.goto(base + "/docs.php", wait_until="domcontentloaded", timeout=45000)
+                shot(page, "docs-mobile")
             finally:
                 browser.close()
     print("ok")
