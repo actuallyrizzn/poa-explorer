@@ -44,7 +44,9 @@ Envelope `{ok, error, cache, body}` on:
 | `api/challenges.php` | Challenge index (large) |
 | `api/openapi.php` | OpenAPI stub |
 
-Python SDK: `sdk/python` (`PoaExplorerClient`). PHP SDK: `sdk/php/PoaExplorerClient.php`. SMCP: `smcp_plugin/poa_explorer/cli.py` (no API key).
+Python SDK: `sdk/python` (`PoaExplorerClient`). PHP SDK: `sdk/php/PoaExplorerClient.php`.
+
+**SMCP** (Sanctum MCP — how agents get tools): install [sanctumos/smcp](https://github.com/sanctumos/smcp) first, then this plugin. Human steps: [docs/SMCP.md](docs/SMCP.md) and https://poa.explorer.zero1.network/docs.php.
 
 Never `/api/hosted/*`. Cache lives outside the web root (45s TTL, last-good on origin failure).
 

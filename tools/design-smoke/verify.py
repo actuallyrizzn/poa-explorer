@@ -147,6 +147,9 @@ def main() -> int:
                     pass
                 if "no wallet" not in dbody.lower():
                     raise AssertionError("docs missing no-wallet bound")
+                if "sanctum mcp" not in dbody.lower() or "git clone https://github.com/sanctumos/smcp" not in dbody.lower():
+                    shot(page, "docs-debug")
+                    raise AssertionError("docs missing SMCP install path")
                 shot(page, "docs-desktop")
                 page.set_viewport_size(MOBILE)
                 page.goto(base + "/docs.php", wait_until="domcontentloaded", timeout=45000)

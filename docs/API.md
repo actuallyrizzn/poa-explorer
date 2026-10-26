@@ -45,4 +45,4 @@ Every JSON route returns:
 
 - Python (stdlib): `sdk/python` — `PoaExplorerClient`
 - PHP: `sdk/php/PoaExplorerClient.php`
-- SMCP: `smcp_plugin/poa_explorer/cli.py` (no API key)
+- SMCP (Sanctum MCP): install SMCP, then this plugin — **[docs/SMCP.md](SMCP.md)** (no API key)

@@ -62,15 +62,31 @@ $tip = $c->status();
 $acct = $c->address('poa1AoECFMm8ge4C9dx8x7LzBxvaByGsZagiT6HY1GYwBa5W');</pre>
 <?php poa_panel_end(); ?>
 
-<?php poa_panel_start('SMCP plugin'); ?>
-<p>Repo path <code>smcp_plugin/poa_explorer/cli.py</code>. No API key — the explorer is public read-only.</p>
+<?php poa_panel_start('SMCP (Sanctum MCP) — what it is, then how to install it'); ?>
+<p><strong>SMCP</strong> is Sanctum’s <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> server. It is a small Python process that turns plugins into tools agents can call (Letta, Cursor, and other MCP clients). It is not this explorer and not the PoA chain. Source and install: <a href="https://github.com/sanctumos/smcp">github.com/sanctumos/smcp</a>. Getting started: <a href="https://github.com/sanctumos/smcp/blob/master/docs/getting-started.md">getting-started.md</a>.</p>
+<p>This explorer ships a <strong>read-only</strong> plugin with <strong>no API key</strong>. Install SMCP first, then copy the plugin in. Same steps in the repo: <span class="mono">docs/SMCP.md</span>.</p>
+<p><strong>1. Install SMCP</strong> (Python 3.10+):</p>
+<pre class="blob">git clone https://github.com/sanctumos/smcp.git
+cd smcp
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python smcp.py</pre>
+<p>That starts http://127.0.0.1:8000 on localhost only. For a local editor client, run <code>python smcp_stdio.py</code> instead.</p>
+<p><strong>2. Install this explorer’s plugin</strong> (still inside the SMCP clone). Copy the plugin <em>and</em> the Python client:</p>
+<pre class="blob">git clone https://github.com/actuallyrizzn/poa-explorer.git
+cp -r poa-explorer/smcp_plugin/poa_explorer plugins/poa_explorer
+cp -r poa-explorer/sdk/python/poa_explorer plugins/poa_explorer/poa_explorer
+python plugins/poa_explorer/cli.py --describe
+python plugins/poa_explorer/cli.py status
+python smcp.py</pre>
+<p>Restart SMCP after copying. Tools appear as <code>poa_explorer__status</code>, <code>poa_explorer__txs</code>, <code>poa_explorer__tx</code>, <code>poa_explorer__address</code>, <code>poa_explorer__anchors</code>, <code>poa_explorer__epochs</code>. <code>poa_explorer__challenges</code> exists but is large — prefer the others.</p>
+<p>If your plugins directory is not <code>plugins/</code> next to <code>smcp.py</code>, set <code>MCP_PLUGINS_DIR</code> to that directory and copy into it the same way.</p>
+<p><strong>3. Optional — run the CLI without a running SMCP server</strong> (from a clone of this explorer):</p>
 <pre class="blob">python3 smcp_plugin/poa_explorer/cli.py status
 python3 smcp_plugin/poa_explorer/cli.py address --a poa1…
-python3 smcp_plugin/poa_explorer/cli.py tx --id 64hex
-python3 smcp_plugin/poa_explorer/cli.py txs
-python3 smcp_plugin/poa_explorer/cli.py anchors
-python3 smcp_plugin/poa_explorer/cli.py epochs</pre>
-<p><code>challenges</code> is available but large. Default base URL is this site; override with <code>--base-url</code>.</p>
+python3 smcp_plugin/poa_explorer/cli.py tx --id 64hex</pre>
+<p>Override the explorer host with <code>--base-url</code> or <code>POA_EXPLORER_BASE_URL</code>. Default is this site.</p>
 <?php poa_panel_end(); ?>
 
 <?php poa_panel_start('Licenses'); ?>

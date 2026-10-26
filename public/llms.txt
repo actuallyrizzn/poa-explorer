@@ -24,6 +24,6 @@ Ledger facts:
 - Address JSON has one balance field. No locked/spendable split in public data. Do not invent one.
 
 SDKs (stdlib): sdk/python (PoaExplorerClient), sdk/php/PoaExplorerClient.php
-SMCP: smcp_plugin/poa_explorer/cli.py — no API key
+SMCP = Sanctum MCP server (https://github.com/sanctumos/smcp). Install SMCP, then copy smcp_plugin/poa_explorer plus sdk/python/poa_explorer into plugins/poa_explorer (see docs/SMCP.md and /docs.php). Plugin is read-only, no API key. python cli.py --describe
 
 Code: AGPLv3. Docs: CC BY-SA 4.0.

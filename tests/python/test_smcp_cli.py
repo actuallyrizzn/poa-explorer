@@ -29,6 +29,15 @@ class SmcpCliTest(unittest.TestCase):
         self.assertEqual(2, proc.returncode)
         self.assertIn("--a", proc.stdout)
 
+    def test_describe_contract(self) -> None:
+        out = subprocess.check_output([sys.executable, str(CLI), "--describe"], text=True)
+        data = json.loads(out)
+        self.assertEqual("1.0", data["contract_version"])
+        self.assertEqual("poa_explorer", data["plugin"]["name"])
+        names = [c["name"] for c in data["commands"]]
+        self.assertIn("status", names)
+        self.assertIn("address", names)
+
 
 if __name__ == "__main__":
     unittest.main()

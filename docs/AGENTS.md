@@ -27,7 +27,9 @@ c = PoaExplorerClient()
 print(c.status()["body"])
 ```
 
-PHP: `new PoaExplorerClient()`. SMCP CLI: `python3 smcp_plugin/poa_explorer/cli.py status`.
+PHP: `new PoaExplorerClient()`.
+
+SMCP is Sanctum MCP ([sanctumos/smcp](https://github.com/sanctumos/smcp)). Install that server first, then copy this plugin in. Steps: `docs/SMCP.md` and https://poa.explorer.zero1.network/docs.php. Direct CLI without SMCP: `python3 smcp_plugin/poa_explorer/cli.py --describe` then `status`.
 
 ## Do not
 
