@@ -79,6 +79,7 @@ final class PoaClientTest extends TestCase
         $ok = poa_json_payload(['body' => ['a' => 1], '_cache' => 'fresh']);
         $this->assertTrue($ok['ok']);
         $this->assertNull($ok['error']);
+        $this->assertSame(POA_EXPLORER_API_VERSION, $ok['version']);
         $this->assertSame(['a' => 1], $ok['body']);
         $bad = poa_json_payload(['_error' => 'nope', 'body' => null, '_cache' => 'miss']);
         $this->assertFalse($bad['ok']);

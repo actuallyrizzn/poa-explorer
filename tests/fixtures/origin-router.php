@@ -36,11 +36,32 @@ if ($path === '/api/anchors') {
     exit;
 }
 if ($path === '/api/epochs') {
-    echo json_encode([['epoch' => 0, 'note' => 'fixture']], JSON_UNESCAPED_SLASHES);
+    echo json_encode([[
+        'epoch' => 0,
+        'ts' => 1790000000,
+        'pool' => '1',
+        'note' => 'fixture',
+        'basis' => [
+            'pending' => [
+                'aa' => ['kind' => 'short', 'panel' => [], 'originalPassed' => false, 'since' => 1],
+            ],
+            'settled' => [],
+            'graders_served' => [],
+        ],
+        'weights' => [],
+        'challenges' => [],
+        'propagation' => [],
+        'rewards' => [],
+    ]], JSON_UNESCAPED_SLASHES);
     exit;
 }
 if ($path === '/api/challenge-index') {
-    echo json_encode(['chain_id' => 'poa-fixture', 'answers' => []], JSON_UNESCAPED_SLASHES);
+    echo json_encode([
+        'chain_id' => 'poa-fixture',
+        'answers' => [
+            'aa' => ['epoch' => 0, 'author' => 'poa1AoECFMm8ge4C9dx8x7LzBxvaByGsZagiT6HY1GYwBa5W', 'source' => 'live'],
+        ],
+    ], JSON_UNESCAPED_SLASHES);
     exit;
 }
 

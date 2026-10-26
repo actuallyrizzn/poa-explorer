@@ -45,6 +45,15 @@ class PoaExplorerClient:
     def challenges(self) -> dict[str, Any]:
         return self.get("/api/challenges.php")
 
+    def changelog(self) -> dict[str, Any]:
+        return self.get("/api/changelog.php")
+
+    def close(self, epoch: str | int) -> dict[str, Any]:
+        return self.get("/api/close.php", {"epoch": str(epoch)})
+
+    def pending(self, query: dict[str, str] | None = None) -> dict[str, Any]:
+        return self.get("/api/pending.php", query)
+
     def get(self, path: str, query: dict[str, str] | None = None) -> dict[str, Any]:
         url = self.base_url + path
         if query:
@@ -53,7 +62,7 @@ class PoaExplorerClient:
             url,
             headers={
                 "Accept": "application/json",
-                "User-Agent": "PoaExplorerClient/0.2 Python",
+                "User-Agent": "PoaExplorerClient/0.3 Python",
             },
         )
         try:

@@ -7,7 +7,7 @@ parse_str((string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY), $que
 header('Content-Type: application/json; charset=UTF-8');
 
 $ok = static function ($body) {
-    echo json_encode(['ok' => true, 'error' => null, 'cache' => 'fresh', 'body' => $body], JSON_UNESCAPED_SLASHES);
+    echo json_encode(['ok' => true, 'error' => null, 'cache' => 'fresh', 'version' => '0.3.0', 'body' => $body], JSON_UNESCAPED_SLASHES);
 };
 
 if ($path === '/api/status.php') {
@@ -42,6 +42,18 @@ if ($path === '/api/epochs.php') {
 }
 if ($path === '/api/challenges.php') {
     $ok(['answers' => []]);
+    exit;
+}
+if ($path === '/api/changelog.php') {
+    $ok(['current' => '0.3.0', 'entries' => []]);
+    exit;
+}
+if ($path === '/api/close.php') {
+    $ok(['epoch' => (int) ($query['epoch'] ?? 0), 'ts' => 1, 'pool' => '1', 'note' => 'x', 'basis' => [], 'weights' => [], 'challenges' => [], 'propagation' => [], 'rewards' => []]);
+    exit;
+}
+if ($path === '/api/pending.php') {
+    $ok(['total' => 0, 'rows' => [], 'as_of_epoch' => 0]);
     exit;
 }
 http_response_code(404);

@@ -68,7 +68,7 @@ def php_server():
         stderr=subprocess.DEVNULL,
     )
     try:
-        wait_http(f"http://127.0.0.1:{port}/index.php")
+        wait_http(f"http://127.0.0.1:{port}/assets/app.css")
         yield f"http://127.0.0.1:{port}"
     finally:
         stop_php(proc)
@@ -116,6 +116,9 @@ def main() -> int:
                 abody = page.inner_text("body")
                 if "517943" not in abody and "Ledger balance" not in abody:
                     raise AssertionError("address page missing balance")
+                if "grading and pending" not in abody.lower() and "pending assignments" not in abody.lower():
+                    shot(page, "address-debug")
+                    raise AssertionError("address page missing grading panel")
                 shot(page, "address-desktop")
 
                 page.set_viewport_size(MOBILE)
@@ -132,6 +135,19 @@ def main() -> int:
 
                 page.goto(base + "/checkpoint.php", wait_until="domcontentloaded", timeout=45000)
                 shot(page, "checkpoint-desktop")
+
+                page.goto(base + "/pending.php", wait_until="domcontentloaded", timeout=90000)
+                pbody = page.inner_text("body")
+                if "without panel" not in pbody.lower():
+                    shot(page, "pending-debug")
+                    raise AssertionError("pending page missing without-panel count")
+                if "snapshot" not in pbody.lower() and "closed" not in pbody.lower():
+                    raise AssertionError("pending page missing snapshot/closed caveat")
+                shot(page, "pending-desktop")
+                page.set_viewport_size(MOBILE)
+                page.goto(base + "/pending.php", wait_until="domcontentloaded", timeout=90000)
+                shot(page, "pending-mobile")
+                page.set_viewport_size(DESKTOP)
 
                 page.goto(base + "/search.php?q=" + urllib.parse.quote(KODA_ADDR), wait_until="domcontentloaded", timeout=45000)
                 if "address.php" not in page.url:
@@ -150,6 +166,11 @@ def main() -> int:
                 if "sanctum mcp" not in dbody.lower() or "git clone https://github.com/sanctumos/smcp" not in dbody.lower():
                     shot(page, "docs-debug")
                     raise AssertionError("docs missing SMCP install path")
+                if "mcp/server.py" not in dbody.lower() and "standard mcp" not in dbody.lower():
+                    shot(page, "docs-debug")
+                    raise AssertionError("docs missing stdio MCP server")
+                if "0.3.0" not in dbody:
+                    raise AssertionError("docs missing API version")
                 shot(page, "docs-desktop")
                 page.set_viewport_size(MOBILE)
                 page.goto(base + "/docs.php", wait_until="domcontentloaded", timeout=45000)

@@ -7,6 +7,23 @@ declare(strict_types=1);
  */
 
 const POA_EXPLORER_ORIGIN = 'https://minepoa.com';
+const POA_EXPLORER_API_VERSION = '0.3.0';
+const POA_EXPLORER_SLOW_CACHE_TTL = 180;
+const POA_EXPLORER_PENDING_PAGE_LIMIT = 100;
+const POA_EXPLORER_EPOCH_EXPIRY = 16;
+
+/** Origin /api/epochs close-record keys (unchanged passthrough). */
+const POA_CLOSE_RECORD_KEYS = [
+    'epoch',
+    'ts',
+    'pool',
+    'note',
+    'basis',
+    'weights',
+    'challenges',
+    'propagation',
+    'rewards',
+];
 
 function poa_origin(): string
 {
@@ -16,7 +33,7 @@ function poa_origin(): string
     }
     return POA_EXPLORER_ORIGIN;
 }
-const POA_EXPLORER_UA = 'PoA-Explorer/0.2 (read-only; https://poa.explorer.zero1.network)';
+const POA_EXPLORER_UA = 'PoA-Explorer/0.3 (read-only; https://poa.explorer.zero1.network)';
 const POA_EXPLORER_TIMEOUT = 20;
 const POA_EXPLORER_CACHE_TTL = 45;
 const POA_EXPLORER_RECENT_TX_LIMIT = 40;

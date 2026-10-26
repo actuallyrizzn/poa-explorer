@@ -9,15 +9,18 @@ Repo API: `docs/API.md`
 
 ## How to call it
 
-Base `https://poa.explorer.zero1.network`. JSON envelope `{ok, error, cache, body}`.
+Base `https://poa.explorer.zero1.network`. JSON envelope `{ok, error, cache, version, body}`. Changelog: `/api/changelog.php`.
 
 Useful first calls:
 
 1. `GET /api/status.php` — is the tip alive?
 2. `GET /api/address.php?a=poa1…` — ledger balance (single field) + txs
 3. `GET /api/tx.php?id=` 64 hex
-4. `GET /api/epochs.php` — closed epochs
-5. Skip `/api/challenges.php` unless you need the full index (large)
+4. `GET /api/epochs.php` — closed epochs (same keys as minepoa `/api/epochs`)
+5. `GET /api/pending.php` — last-close pending snapshot (not a live panel draw)
+6. Skip `/api/challenges.php` unless you need the full index (large)
+
+Stdio MCP: `python3 mcp/server.py` ([docs/MCP.md](MCP.md)). SMCP plugin still exists.
 
 Python:
 

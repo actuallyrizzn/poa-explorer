@@ -49,6 +49,10 @@ final class PoaSdkTest extends TestCase
         $this->assertSame(9, $c->anchors()['body'][0]['height']);
         $this->assertSame(0, $c->epochs()['body'][0]['epoch']);
         $this->assertSame([], $c->challenges()['body']['answers']);
+        $this->assertSame('0.3.0', $c->changelog()['body']['current']);
+        $this->assertSame(2, $c->close('2')['body']['epoch']);
+        $this->assertSame(0, $c->pending()['body']['total']);
+        $this->assertArrayHasKey('version', $c->status());
     }
 
     public function testTxErrorEnvelope(): void

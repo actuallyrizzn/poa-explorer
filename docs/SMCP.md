@@ -48,7 +48,9 @@ python plugins/poa_explorer/cli.py status
 python smcp.py
 ```
 
-`--describe` is the SMCP discovery contract. After a restart, tools show up as `poa_explorer__status`, `poa_explorer__txs`, `poa_explorer__tx`, `poa_explorer__address`, `poa_explorer__anchors`, `poa_explorer__epochs`, and `poa_explorer__challenges`.
+`--describe` is the SMCP discovery contract. After a restart, tools show up as `poa_explorer__status`, `poa_explorer__txs`, `poa_explorer__tx`, `poa_explorer__address`, `poa_explorer__anchors`, `poa_explorer__epochs`, `poa_explorer__close`, `poa_explorer__pending`, `poa_explorer__changelog`, and `poa_explorer__challenges`.
+
+For MCP clients that do not use SMCP, there is also a stdio server: [docs/MCP.md](MCP.md) (`mcp/server.py`).
 
 `challenges` is a large payload. Prefer `status`, `txs`, `address`, or `tx` unless you need the index.
 

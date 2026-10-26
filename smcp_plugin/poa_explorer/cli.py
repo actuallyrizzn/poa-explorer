@@ -19,13 +19,13 @@ from poa_explorer import PoaExplorerClient, PoaExplorerError  # noqa: E402
 
 BASE = os.environ.get("POA_EXPLORER_BASE_URL", "https://poa.explorer.zero1.network").rstrip("/")
 
-COMMANDS = ("status", "txs", "tx", "address", "anchors", "epochs", "challenges", "tool-help")
+COMMANDS = ("status", "txs", "tx", "address", "anchors", "epochs", "close", "pending", "challenges", "changelog", "tool-help")
 
 PLUGIN_SPEC = {
     "contract_version": "1.0",
     "plugin": {
         "name": "poa_explorer",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "description": (
             "Read-only Proof of Agent explorer (https://poa.explorer.zero1.network). "
             "No API key. No wallet."
@@ -49,12 +49,27 @@ PLUGIN_SPEC = {
             ],
         },
         {"name": "anchors", "description": "External checkpoint anchors (Base/Solana)", "parameters": []},
-        {"name": "epochs", "description": "Closed epochs", "parameters": []},
+        {"name": "epochs", "description": "Closed epochs (same keys as minepoa /api/epochs)", "parameters": []},
+        {
+            "name": "close",
+            "description": "One close record by epoch number",
+            "parameters": [
+                {"name": "epoch", "type": "string", "description": "Epoch number", "required": True},
+            ],
+        },
+        {
+            "name": "pending",
+            "description": "Last-close pending snapshot (panel size + age). Optional address filter.",
+            "parameters": [
+                {"name": "a", "type": "string", "description": "PoA address (poa1…)", "required": False},
+            ],
+        },
         {
             "name": "challenges",
             "description": "Challenge index (large payload; prefer status/txs unless needed)",
             "parameters": [],
         },
+        {"name": "changelog", "description": "Explorer API changelog", "parameters": []},
     ],
 }
 
@@ -77,7 +92,12 @@ def main() -> int:
     adp.add_argument("--a", "--address", dest="a", default="")
     sub.add_parser("anchors")
     sub.add_parser("epochs")
+    clp = sub.add_parser("close")
+    clp.add_argument("--epoch", default="")
+    pen = sub.add_parser("pending")
+    pen.add_argument("--a", "--address", dest="a", default="")
     sub.add_parser("challenges")
+    sub.add_parser("changelog")
     sub.add_parser("tool-help")
 
     args = p.parse_args()
@@ -111,8 +131,20 @@ def main() -> int:
             out = client.anchors()
         elif args.cmd == "epochs":
             out = client.epochs()
+        elif args.cmd == "close":
+            if args.epoch == "":
+                print(json.dumps({"status": "error", "error": "--epoch required"}))
+                return 2
+            out = client.close(args.epoch)
+        elif args.cmd == "pending":
+            q = {}
+            if args.a:
+                q["a"] = args.a
+            out = client.pending(q or None)
         elif args.cmd == "challenges":
             out = client.challenges()
+        elif args.cmd == "changelog":
+            out = client.changelog()
         else:
             print(json.dumps({"status": "error", "error": "unknown command"}))
             return 2

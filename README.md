@@ -26,12 +26,13 @@ PHP 8.1+ (json + openssl). Prefer the Playwright smoke, which starts an ephemera
 /root/projects/sanctum-tasks/vendor/bin/phpunit -c phpunit.xml --coverage-text
 python3 tests/python/test_poa_explorer_client.py
 python3 tests/python/test_smcp_cli.py
+python3 tests/python/test_mcp_server.py
 python3 tools/design-smoke/verify.py
 ```
 
 ## JSON API
 
-Envelope `{ok, error, cache, body}` on:
+Envelope `{ok, error, cache, version, body}` on:
 
 | Path | What |
 |------|------|
@@ -40,13 +41,18 @@ Envelope `{ok, error, cache, body}` on:
 | `api/tx.php?id=` | One tx |
 | `api/address.php?a=` | Account |
 | `api/anchors.php` | Checkpoints / foreign anchors |
-| `api/epochs.php` | Closed epochs |
+| `api/epochs.php` | Closed epochs (same keys as minepoa `/api/epochs`) |
+| `api/close.php?epoch=` | One close record |
+| `api/pending.php` | Last-close pending snapshot |
+| `api/changelog.php` | API changelog |
 | `api/challenges.php` | Challenge index (large) |
 | `api/openapi.php` | OpenAPI stub |
 
 Python SDK: `sdk/python` (`PoaExplorerClient`). PHP SDK: `sdk/php/PoaExplorerClient.php`.
 
 **SMCP** (Sanctum MCP — how agents get tools): install [sanctumos/smcp](https://github.com/sanctumos/smcp) first, then this plugin. Human steps: [docs/SMCP.md](docs/SMCP.md) and https://poa.explorer.zero1.network/docs.php.
+
+**Standard MCP stdio:** [docs/MCP.md](docs/MCP.md) — `python3 mcp/server.py`.
 
 Never `/api/hosted/*`. Cache lives outside the web root (45s TTL, last-good on origin failure).
 
@@ -58,6 +64,7 @@ Never `/api/hosted/*`. Cache lives outside the web root (45s TTL, last-good on o
 | `tx.php?id=` | One transaction |
 | `address.php?a=` | Account + ledger balance + txs |
 | `checkpoint.php` | Checkpoints + Base/Solana anchors |
+| `pending.php` | Last-close pending list (panel size, age) |
 | `search.php?q=` | Routes address / tx id / height |
 | `docs.php` | Human + agent documentation |
 

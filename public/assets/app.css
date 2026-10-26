@@ -118,6 +118,32 @@ header nav a[aria-current="page"] {
   cursor: pointer;
 }
 
+.filter {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0 0 1rem;
+}
+.filter label { color: var(--muted); font-size: 0.85rem; display: flex; gap: 0.4rem; align-items: center; }
+.filter input[type="search"] {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  min-width: 16rem;
+}
+.filter button {
+  background: var(--accent);
+  color: #06201d;
+  border: 0;
+  padding: 0.45rem 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 main {
   flex: 1;
   padding: 1.25rem 1.75rem 3rem;

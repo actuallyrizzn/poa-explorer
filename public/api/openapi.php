@@ -10,7 +10,7 @@ echo json_encode([
     'openapi' => '3.0.3',
     'info' => [
         'title' => 'PoA Explorer API',
-        'version' => '0.2.0',
+        'version' => '0.3.0',
         'description' => 'Read-only JSON for the Proof of Agent ledger. No wallet. No keys. Never /api/hosted.',
         'license' => [
             'name' => 'AGPL-3.0',
@@ -32,8 +32,22 @@ echo json_encode([
             'parameters' => [['name' => 'a', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string']]],
         ]],
         '/api/anchors.php' => ['get' => ['summary' => 'External checkpoint anchors', 'operationId' => 'anchors']],
-        '/api/epochs.php' => ['get' => ['summary' => 'Closed epochs', 'operationId' => 'epochs']],
+        '/api/epochs.php' => ['get' => ['summary' => 'Closed epochs (same keys as minepoa /api/epochs)', 'operationId' => 'epochs']],
+        '/api/close.php' => ['get' => [
+            'summary' => 'One close record by epoch',
+            'operationId' => 'close',
+            'parameters' => [['name' => 'epoch', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string']]],
+        ]],
+        '/api/pending.php' => ['get' => [
+            'summary' => 'Last-close pending snapshot (panel size + age)',
+            'operationId' => 'pending',
+            'parameters' => [
+                ['name' => 'a', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+                ['name' => 'without_panel', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
+            ],
+        ]],
+        '/api/changelog.php' => ['get' => ['summary' => 'API changelog', 'operationId' => 'changelog']],
         '/api/challenges.php' => ['get' => ['summary' => 'Challenge index (large)', 'operationId' => 'challenges']],
     ],
-    'x-envelope' => ['ok' => 'boolean', 'error' => 'string|null', 'cache' => 'fresh|hit|stale|miss', 'body' => 'origin JSON'],
+    'x-envelope' => ['ok' => 'boolean', 'error' => 'string|null', 'cache' => 'fresh|hit|stale|miss', 'version' => 'semver', 'body' => 'origin JSON'],
 ], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);

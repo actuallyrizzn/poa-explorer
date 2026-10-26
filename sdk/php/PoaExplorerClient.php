@@ -51,6 +51,21 @@ final class PoaExplorerClient
         return $this->get('/api/challenges.php');
     }
 
+    public function changelog(): array
+    {
+        return $this->get('/api/changelog.php');
+    }
+
+    public function close(string $epoch): array
+    {
+        return $this->get('/api/close.php', ['epoch' => $epoch]);
+    }
+
+    public function pending(array $query = []): array
+    {
+        return $this->get('/api/pending.php', $query);
+    }
+
     /**
      * @param array<string,string> $query
      * @return array<string,mixed>
@@ -65,7 +80,7 @@ final class PoaExplorerClient
             'http' => [
                 'method' => 'GET',
                 'timeout' => $this->timeout,
-                'header' => "Accept: application/json\r\nUser-Agent: PoaExplorerClient/0.2 PHP\r\n",
+                'header' => "Accept: application/json\r\nUser-Agent: PoaExplorerClient/0.3 PHP\r\n",
                 'ignore_errors' => true,
             ],
             'ssl' => [

@@ -64,6 +64,9 @@ class ClientTest(unittest.TestCase):
             self.assertTrue(c.epochs()["ok"])
             self.assertTrue(c.challenges()["ok"])
             self.assertTrue(c.tx("ab" * 32)["ok"])
+            self.assertTrue(c.changelog()["ok"])
+            self.assertTrue(c.close(7)["ok"])
+            self.assertTrue(c.pending({"a": "poa1x"})["ok"])
 
 
 if __name__ == "__main__":

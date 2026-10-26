@@ -33,6 +33,48 @@ if ($body && !isset($body['error'])) {
     echo '<p class="hint">Public JSON does not split locked vs spendable. Some credit activity may appear only as this balance, not as a row below.</p>';
     poa_panel_end();
 
+    $g = is_array($body['grading'] ?? null) ? $body['grading'] : [];
+    $pendHref = 'pending.php?a=' . rawurlencode($addr);
+    poa_panel_start('Grading and pending', 'Last closed epoch snapshot plus this account’s grade-sealed txs. Panel is not a live draw.');
+    poa_stats([
+        'As of close' => poa_h(($g['as_of_epoch'] ?? null) === null ? '—' : (string) $g['as_of_epoch']),
+        'Pending assignments' => poa_h((string) (int) ($g['pending_count'] ?? 0)),
+        'Without panel' => poa_h((string) (int) ($g['without_panel_count'] ?? 0)),
+        'Answers as author (index)' => poa_h((string) (int) ($g['answers_as_author_count'] ?? 0)),
+        'Settled as author this close' => poa_h((string) (int) ($g['settled_as_author_this_close'] ?? 0)),
+        'Jury rows this close' => poa_h((string) (int) ($g['jury_rows_this_close'] ?? 0)),
+        'Graders served this close' => poa_h(($g['graders_served_this_close'] ?? null) === null ? '—' : (string) $g['graders_served_this_close']),
+        'Grade-sealed txs on this page' => poa_h((string) count($g['grade_sealed_txs'] ?? [])),
+    ]);
+    echo '<p class="hint"><a href="' . poa_h($pendHref) . '">Open pending tab for this account</a>. ' . poa_h((string) ($g['live_panel_note'] ?? '')) . '</p>';
+    if (!empty($g['pending'])) {
+        echo '<div class="table-wrap"><table class="txs"><thead><tr><th>Answer</th><th>Panel size</th><th>Age</th></tr></thead><tbody>';
+        foreach ($g['pending'] as $p) {
+            if (!is_array($p)) {
+                continue;
+            }
+            echo '<tr><td class="mono">' . poa_h(poa_short_id((string) ($p['answer'] ?? ''), 8)) . '</td>';
+            echo '<td>' . poa_h((string) (int) ($p['panel_size'] ?? 0)) . '</td>';
+            echo '<td>' . poa_h($p['since'] === null || $p['since'] === '' ? '—' : ((string) $p['since'] . ' epochs')) . '</td></tr>';
+        }
+        echo '</tbody></table></div>';
+    }
+    if (!empty($g['jury_as_grader'])) {
+        echo '<h3>As grader (this close)</h3>';
+        echo '<div class="table-wrap"><table class="txs"><thead><tr><th>Answer</th><th>Author</th><th>Passed</th><th>Aligned</th></tr></thead><tbody>';
+        foreach ($g['jury_as_grader'] as $j) {
+            if (!is_array($j)) {
+                continue;
+            }
+            echo '<tr><td class="mono">' . poa_h(poa_short_id((string) ($j['answer'] ?? ''), 8)) . '</td>';
+            echo '<td>' . poa_addr_link((string) ($j['from'] ?? '')) . '</td>';
+            echo '<td>' . poa_h(!empty($j['passed']) ? 'yes' : 'no') . '</td>';
+            echo '<td>' . poa_h(isset($j['aligned']) ? ($j['aligned'] ? 'yes' : 'no') : '—') . '</td></tr>';
+        }
+        echo '</tbody></table></div>';
+    }
+    poa_panel_end();
+
     poa_panel_start('Transactions');
     poa_tx_table(poa_tx_list_from_address($body));
     poa_panel_end();
