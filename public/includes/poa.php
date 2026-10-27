@@ -239,11 +239,15 @@ function poa_address(string $addr): array
     }
     $row = poa_json_get('/api/explorer/address/' . $addr);
     if (is_array($row['body']) && !isset($row['body']['error'])) {
+        $epochsRow = poa_epochs();
+        $epochsBody = is_array($epochsRow['body']) ? $epochsRow['body'] : null;
+        $close = is_array($epochsBody) ? poa_latest_close($epochsBody) : null;
         $row['body']['grading'] = poa_grading_for_address(
             $addr,
             $row['body'],
-            poa_latest_close_from_origin(),
-            poa_challenges_body()
+            $close,
+            poa_challenges_body(),
+            $epochsBody
         );
     }
     return $row;
@@ -304,6 +308,15 @@ function poa_finality_label(array $row): string
 function poa_changelog(): array
 {
     return [
+        [
+            'version' => '0.3.1',
+            'date' => '2026-10-27',
+            'changes' => [
+                'Pending rows pass through public close grades as [{score, ts, grader}] when the field exists. Empty list means zero seals in that snapshot. Missing field stays null with a note. Quorum is still not on public pending rows.',
+                'Pending rows add answer_txid (the 64-hex answer id, which resolves as a challenge tx).',
+                'Address grading joins this account’s challenge txs to last-close pending and to settled rows across closes by that answer txid.',
+            ],
+        ],
         [
             'version' => '0.3.0',
             'date' => '2026-10-26',
@@ -409,6 +422,56 @@ function poa_close_keys_present(array $close): array
     return $missing;
 }
 
+function poa_pending_grade_items($raw): array
+{
+    if (!is_array($raw)) {
+        return [];
+    }
+    $out = [];
+    foreach ($raw as $g) {
+        if (!is_array($g)) {
+            continue;
+        }
+        $item = [];
+        if (array_key_exists('score', $g)) {
+            $item['score'] = is_numeric($g['score']) ? (int) $g['score'] : $g['score'];
+        }
+        if (array_key_exists('ts', $g)) {
+            $item['ts'] = is_numeric($g['ts']) ? (int) $g['ts'] : $g['ts'];
+        }
+        $grader = trim((string) ($g['grader'] ?? ''));
+        if ($grader !== '') {
+            $item['grader'] = $grader;
+        }
+        if ($item !== []) {
+            $out[] = $item;
+        }
+    }
+    return $out;
+}
+
+function poa_pending_grades_field(array $p): array
+{
+    if (!array_key_exists('grades', $p)) {
+        return [
+            'grades' => null,
+            'grades_count' => null,
+            'grades_note' => 'this pending row has no grades field in the public close',
+        ];
+    }
+    $items = poa_pending_grade_items($p['grades']);
+    return [
+        'grades' => $items,
+        'grades_count' => count($items),
+        'grades_note' => null,
+    ];
+}
+
+function poa_is_challenge_tx(array $tx): bool
+{
+    return str_contains(strtolower((string) ($tx['type'] ?? '')), 'challenge');
+}
+
 function poa_pending_snapshot(?array $close, ?array $challenges): array
 {
     $pending = is_array($close) ? ($close['basis']['pending'] ?? []) : [];
@@ -427,6 +490,9 @@ function poa_pending_snapshot(?array $close, ?array $challenges): array
     $rows = [];
     $with = 0;
     $without = 0;
+    $withSeals = 0;
+    $zeroSeals = 0;
+    $missingGrades = 0;
     foreach ($pending as $aid => $p) {
         if (!is_array($p)) {
             continue;
@@ -443,44 +509,85 @@ function poa_pending_snapshot(?array $close, ?array $challenges): array
         $since = array_key_exists('since', $p) && $p['since'] !== null && $p['since'] !== ''
             ? (int) $p['since']
             : null;
+        $aidStr = (string) $aid;
+        $gradeField = poa_pending_grades_field($p);
+        if ($gradeField['grades'] === null) {
+            $missingGrades++;
+        } elseif ((int) $gradeField['grades_count'] === 0) {
+            $zeroSeals++;
+        } else {
+            $withSeals++;
+        }
         $rows[] = [
-            'answer' => (string) $aid,
+            'answer' => $aidStr,
+            'answer_txid' => poa_is_tx_id($aidStr) ? strtolower($aidStr) : null,
             'author' => (string) ($ans['author'] ?? ''),
             'answer_epoch' => $ans['epoch'] ?? null,
             'source' => $ans['source'] ?? null,
             'kind' => $p['kind'] ?? null,
             'panel' => $panelList,
             'panel_size' => $size,
-            'grades' => null,
-            'grades_note' => 'not on public close pending rows',
+            'grades' => $gradeField['grades'],
+            'grades_count' => $gradeField['grades_count'],
+            'grades_note' => $gradeField['grades_note'],
             'quorum' => null,
-            'quorum_note' => 'not on public close pending rows',
+            'quorum_note' => 'quorum is not on public close pending rows',
             'since' => $since,
             'expiry_epochs' => POA_EXPLORER_EPOCH_EXPIRY,
             'originalPassed' => $p['originalPassed'] ?? null,
         ];
     }
 
+    usort($rows, static function ($a, $b) {
+        $rank = static function ($r): int {
+            if (($r['grades'] ?? null) === null) {
+                return 2;
+            }
+            if ((int) ($r['grades_count'] ?? 0) === 0) {
+                return 1;
+            }
+            return 0;
+        };
+        return $rank($a) <=> $rank($b);
+    });
+
     return [
         'as_of_epoch' => is_array($close) ? ($close['epoch'] ?? null) : null,
         'as_of_ts' => is_array($close) ? ($close['ts'] ?? null) : null,
         'source' => 'minepoa GET /api/epochs basis.pending (latest close); authors from GET /api/challenge-index answers',
-        'live_panel_note' => 'Panel size is the last closed epoch snapshot, not a live draw. Public assignment routes are not available.',
+        'live_panel_note' => 'Panel size is the last closed epoch snapshot, not a live draw. Public assignment routes are not available. Listing order is explorer-side: rows with seals first, then zero-seal rows, then rows with no grades field.',
         'total' => count($rows),
         'with_panel' => $with,
         'without_panel' => $without,
+        'with_seals' => $withSeals,
+        'zero_seals' => $zeroSeals,
+        'missing_grades_field' => $missingGrades,
         'settled_this_close' => count($settled),
         'rows' => $rows,
     ];
 }
 
-function poa_filter_pending_snapshot(array $snap, string $addr, bool $withoutOnly, int $limit): array
+function poa_filter_pending_snapshot(array $snap, string $addr, bool $withoutOnly, int $limit, array $extraAnswerIds = []): array
 {
     $limit = max(1, min(200, $limit));
     $rows = is_array($snap['rows'] ?? null) ? $snap['rows'] : [];
     if ($addr !== '') {
-        $rows = array_values(array_filter($rows, static function ($r) use ($addr) {
-            return is_array($r) && strcasecmp((string) ($r['author'] ?? ''), $addr) === 0;
+        $ids = [];
+        foreach ($extraAnswerIds as $id) {
+            $id = strtolower((string) $id);
+            if ($id !== '') {
+                $ids[$id] = true;
+            }
+        }
+        $rows = array_values(array_filter($rows, static function ($r) use ($addr, $ids) {
+            if (!is_array($r)) {
+                return false;
+            }
+            if (strcasecmp((string) ($r['author'] ?? ''), $addr) === 0) {
+                return true;
+            }
+            $aid = strtolower((string) ($r['answer'] ?? ''));
+            return $aid !== '' && isset($ids[$aid]);
         }));
     }
     if ($withoutOnly) {
@@ -506,7 +613,14 @@ function poa_pending_row(string $addr = '', bool $withoutOnly = false, int $limi
     $ch = poa_challenges();
     $close = is_array($epochs['body']) ? poa_latest_close($epochs['body']) : null;
     $snap = poa_pending_snapshot($close, is_array($ch['body']) ? $ch['body'] : null);
-    $body = poa_filter_pending_snapshot($snap, $addr, $withoutOnly, $limit);
+    $extraIds = [];
+    if ($addr !== '' && poa_is_address($addr)) {
+        $acct = poa_json_get('/api/explorer/address/' . $addr);
+        if (is_array($acct['body']) && !isset($acct['body']['error'])) {
+            $extraIds = array_keys(poa_challenge_txs_by_id($acct['body']));
+        }
+    }
+    $body = poa_filter_pending_snapshot($snap, $addr, $withoutOnly, $limit, $extraIds);
     $err = $epochs['_error'] ?? null;
     if ($err === null && ($ch['_error'] ?? null)) {
         $err = $ch['_error'];
@@ -526,14 +640,107 @@ function poa_is_grade_tx(array $tx): bool
     return str_contains($t, 'grade');
 }
 
-function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?array $challenges): array
+function poa_challenge_txs_by_id(array $addrBody): array
+{
+    $out = [];
+    foreach (poa_tx_list_from_address($addrBody) as $tx) {
+        if (!is_array($tx) || !poa_is_challenge_tx($tx)) {
+            continue;
+        }
+        $id = strtolower((string) ($tx['id'] ?? ''));
+        if (!poa_is_tx_id($id)) {
+            continue;
+        }
+        $out[$id] = $tx;
+    }
+    return $out;
+}
+
+function poa_compact_pending_row(array $r): array
+{
+    return [
+        'answer' => $r['answer'] ?? null,
+        'answer_txid' => $r['answer_txid'] ?? null,
+        'since' => $r['since'] ?? null,
+        'kind' => $r['kind'] ?? null,
+        'panel' => $r['panel'] ?? [],
+        'panel_size' => $r['panel_size'] ?? 0,
+        'grades' => $r['grades'] ?? null,
+        'grades_count' => $r['grades_count'] ?? null,
+    ];
+}
+
+function poa_settled_by_answer_txid(?array $close, ?array $epochsBody, array $txIds): array
+{
+    $closes = [];
+    if (is_array($epochsBody) && $epochsBody) {
+        foreach ($epochsBody as $c) {
+            if (is_array($c)) {
+                $closes[] = $c;
+            }
+        }
+    } elseif (is_array($close)) {
+        $closes[] = $close;
+    }
+    $hits = [];
+    foreach ($closes as $c) {
+        $settled = $c['basis']['settled'] ?? [];
+        if (!is_array($settled)) {
+            continue;
+        }
+        foreach ($settled as $s) {
+            if (!is_array($s)) {
+                continue;
+            }
+            $aid = strtolower((string) ($s['answer'] ?? ''));
+            if ($aid === '' || !isset($txIds[$aid])) {
+                continue;
+            }
+            $hits[] = [
+                'answer_txid' => $aid,
+                'close_epoch' => $c['epoch'] ?? null,
+                'close_ts' => $c['ts'] ?? null,
+                'from' => $s['from'] ?? null,
+                'passed' => $s['passed'] ?? null,
+            ];
+        }
+    }
+    return $hits;
+}
+
+function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?array $challenges, ?array $epochsBody = null): array
 {
     $snap = poa_pending_snapshot($close, $challenges);
+    $challengeTxs = poa_challenge_txs_by_id($addrBody);
+    $pendingByAnswer = [];
+    foreach ($snap['rows'] as $r) {
+        if (!is_array($r)) {
+            continue;
+        }
+        $aid = strtolower((string) ($r['answer'] ?? ''));
+        if ($aid !== '') {
+            $pendingByAnswer[$aid] = $r;
+        }
+    }
+
     $pendingMine = [];
+    $seen = [];
     $without = 0;
     foreach ($snap['rows'] as $r) {
-        if (strcasecmp((string) ($r['author'] ?? ''), $addr) !== 0) {
+        if (!is_array($r)) {
             continue;
+        }
+        $aid = strtolower((string) ($r['answer'] ?? ''));
+        $authorMatch = strcasecmp((string) ($r['author'] ?? ''), $addr) === 0;
+        $txidMatch = $aid !== '' && isset($challengeTxs[$aid]);
+        if (!$authorMatch && !$txidMatch) {
+            continue;
+        }
+        if ($aid !== '' && isset($seen[$aid])) {
+            continue;
+        }
+        if ($aid !== '') {
+            $seen[$aid] = true;
         }
         $pendingMine[] = $r;
         if ((int) ($r['panel_size'] ?? 0) === 0) {
@@ -553,6 +760,7 @@ function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?
             }
             $answersMine[] = [
                 'answer' => (string) $aid,
+                'answer_txid' => poa_is_tx_id((string) $aid) ? strtolower((string) $aid) : null,
                 'epoch' => $ans['epoch'] ?? null,
                 'source' => $ans['source'] ?? null,
             ];
@@ -567,13 +775,17 @@ function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?
             if (!is_array($s)) {
                 continue;
             }
+            $sid = strtolower((string) ($s['answer'] ?? ''));
+            $row = $s;
+            $row['answer_txid'] = poa_is_tx_id($sid) ? $sid : null;
             if (strcasecmp((string) ($s['from'] ?? ''), $addr) === 0) {
-                $settledMine[] = $s;
+                $settledMine[] = $row;
             }
             foreach ((array) ($s['jury'] ?? []) as $j) {
                 if (is_array($j) && strcasecmp((string) ($j['grader'] ?? ''), $addr) === 0) {
                     $juryMine[] = [
                         'answer' => $s['answer'] ?? null,
+                        'answer_txid' => poa_is_tx_id($sid) ? $sid : null,
                         'from' => $s['from'] ?? null,
                         'passed' => $s['passed'] ?? null,
                         'aligned' => $j['aligned'] ?? null,
@@ -601,6 +813,23 @@ function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?
         }
     }
 
+    $settledByTxid = poa_settled_by_answer_txid($close, $epochsBody, $challengeTxs);
+    $settledJoinById = [];
+    foreach ($settledByTxid as $hit) {
+        $settledJoinById[(string) ($hit['answer_txid'] ?? '')] = $hit;
+    }
+
+    $challengeJoins = [];
+    foreach ($challengeTxs as $id => $tx) {
+        $pend = $pendingByAnswer[$id] ?? null;
+        $challengeJoins[] = [
+            'answer_txid' => $id,
+            'tx_epoch' => $tx['epoch'] ?? null,
+            'pending' => is_array($pend) ? poa_compact_pending_row($pend) : null,
+            'settled' => $settledJoinById[$id] ?? null,
+        ];
+    }
+
     return [
         'as_of_epoch' => $snap['as_of_epoch'],
         'as_of_ts' => $snap['as_of_ts'],
@@ -610,12 +839,15 @@ function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?
         'without_panel_count' => $without,
         'answers_as_author_count' => count($answersMine),
         'settled_as_author_this_close' => count($settledMine),
+        'settled_by_answer_txid_count' => count($settledByTxid),
         'jury_rows_this_close' => count($juryMine),
         'graders_served_this_close' => $served,
         'grade_sealed_txs' => $gradeTxs,
         'pending' => $pendingMine,
         'answers_as_author' => $answersMine,
         'settled_as_author' => $settledMine,
+        'settled_by_answer_txid' => $settledByTxid,
+        'challenge_joins' => $challengeJoins,
         'jury_as_grader' => $juryMine,
     ];
 }

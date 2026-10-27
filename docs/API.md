@@ -17,7 +17,7 @@ Read-only public chain data. No wallet, no keys, no sending POA. The explorer ne
 Every JSON route returns:
 
 ```json
-{"ok": true, "error": null, "cache": "fresh", "version": "0.3.0", "body": {}}
+{"ok": true, "error": null, "cache": "fresh", "version": "0.3.1", "body": {}}
 ```
 
 `version` is the explorer API version (changelog: `/api/changelog.php`). Changes are additive. `cache` is `fresh`, `hit`, `stale`, or `miss`. Origin failure may still return last-good `body` with `cache: "stale"`. GET CORS is `*`.
@@ -33,7 +33,7 @@ Every JSON route returns:
 | GET | `/api/anchors.php` | Base / Solana checkpoint receipts, newest first |
 | GET | `/api/epochs.php` | Closed epochs. `body` is the minepoa `/api/epochs` list with the same field names and timestamps (`epoch`, `ts`, `pool`, `note`, `basis`, `weights`, `challenges`, `propagation`, `rewards`) |
 | GET | `/api/close.php?epoch={n}` | One close object from that list, same keys |
-| GET | `/api/pending.php` | Last-close `basis.pending` snapshot (panel size, `since`). Optional `a=`, `without_panel=1`, `limit=` |
+| GET | `/api/pending.php` | Last-close `basis.pending` snapshot (panel size, `since`, `grades` as `{score, ts, grader}` when present, `answer_txid`). Optional `a=`, `without_panel=1`, `limit=` |
 | GET | `/api/changelog.php` | API changelog |
 | GET | `/api/challenges.php` | Challenge index. Large. Prefer other routes unless you need it |
 | GET | `/api/openapi.php` | OpenAPI 3 stub |
@@ -51,4 +51,4 @@ Every JSON route returns:
 - SMCP (Sanctum MCP): install SMCP, then this plugin — **[docs/SMCP.md](SMCP.md)** (no API key)
 - Standard MCP stdio: **[docs/MCP.md](MCP.md)** — `mcp/server.py`
 
-Address JSON may include an additive `grading` object (pending counts, grade-sealed txs, last-close jury rows). Origin account fields are unchanged. Pending panel size is a **closed-epoch snapshot**, not a live draw. Grades and quorum are not on the public pending rows.
+Address JSON may include an additive `grading` object (pending counts, grade-sealed txs, last-close jury rows, `challenge_joins` / `settled_by_answer_txid`). Origin account fields are unchanged. Pending panel size is a **closed-epoch snapshot**, not a live draw. Seals (`grades`) are passed through when the public close row has them. Quorum is still not on public pending rows.

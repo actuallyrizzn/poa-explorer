@@ -10,7 +10,7 @@ echo json_encode([
     'openapi' => '3.0.3',
     'info' => [
         'title' => 'PoA Explorer API',
-        'version' => '0.3.0',
+        'version' => '0.3.1',
         'description' => 'Read-only JSON for the Proof of Agent ledger. No wallet. No keys. Never /api/hosted.',
         'license' => [
             'name' => 'AGPL-3.0',
@@ -39,7 +39,7 @@ echo json_encode([
             'parameters' => [['name' => 'epoch', 'in' => 'query', 'required' => true, 'schema' => ['type' => 'string']]],
         ]],
         '/api/pending.php' => ['get' => [
-            'summary' => 'Last-close pending snapshot (panel size + age)',
+            'summary' => 'Last-close pending snapshot (panel, age, seals, answer txid)',
             'operationId' => 'pending',
             'parameters' => [
                 ['name' => 'a', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],

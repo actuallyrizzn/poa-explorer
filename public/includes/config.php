@@ -7,7 +7,7 @@ declare(strict_types=1);
  */
 
 const POA_EXPLORER_ORIGIN = 'https://minepoa.com';
-const POA_EXPLORER_API_VERSION = '0.3.0';
+const POA_EXPLORER_API_VERSION = '0.3.1';
 const POA_EXPLORER_SLOW_CACHE_TTL = 180;
 const POA_EXPLORER_PENDING_PAGE_LIMIT = 100;
 const POA_EXPLORER_EPOCH_EXPIRY = 16;

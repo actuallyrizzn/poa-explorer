@@ -119,6 +119,9 @@ def main() -> int:
                 if "grading and pending" not in abody.lower() and "pending assignments" not in abody.lower():
                     shot(page, "address-debug")
                     raise AssertionError("address page missing grading panel")
+                if "settled via answer txid" not in abody.lower():
+                    shot(page, "address-debug")
+                    raise AssertionError("address page missing answer-txid join")
                 shot(page, "address-desktop")
 
                 page.set_viewport_size(MOBILE)
@@ -136,17 +139,35 @@ def main() -> int:
                 page.goto(base + "/checkpoint.php", wait_until="domcontentloaded", timeout=45000)
                 shot(page, "checkpoint-desktop")
 
+                page.set_viewport_size({"width": 1280, "height": 1400})
                 page.goto(base + "/pending.php", wait_until="domcontentloaded", timeout=90000)
                 pbody = page.inner_text("body")
                 if "without panel" not in pbody.lower():
                     shot(page, "pending-debug")
                     raise AssertionError("pending page missing without-panel count")
+                if "with seals" not in pbody.lower():
+                    shot(page, "pending-debug")
+                    raise AssertionError("pending page missing with-seals count")
                 if "snapshot" not in pbody.lower() and "closed" not in pbody.lower():
                     raise AssertionError("pending page missing snapshot/closed caveat")
+                if " · " not in pbody and "0 seals" not in pbody.lower():
+                    shot(page, "pending-debug")
+                    raise AssertionError("pending table missing seal scores")
                 shot(page, "pending-desktop")
                 page.set_viewport_size(MOBILE)
                 page.goto(base + "/pending.php", wait_until="domcontentloaded", timeout=90000)
                 shot(page, "pending-mobile")
+                page.set_viewport_size({"width": 1280, "height": 1400})
+                page.goto(
+                    base + "/pending.php?a=" + urllib.parse.quote(KODA_ADDR),
+                    wait_until="domcontentloaded",
+                    timeout=90000,
+                )
+                kpend = page.inner_text("body")
+                if "showing 1 of 1" in kpend.lower():
+                    shot(page, "pending-koda-debug")
+                    raise AssertionError("account pending filter still author-only (expected txid join)")
+                shot(page, "pending-koda-desktop")
                 page.set_viewport_size(DESKTOP)
 
                 page.goto(base + "/search.php?q=" + urllib.parse.quote(KODA_ADDR), wait_until="domcontentloaded", timeout=45000)
@@ -169,7 +190,7 @@ def main() -> int:
                 if "mcp/server.py" not in dbody.lower() and "standard mcp" not in dbody.lower():
                     shot(page, "docs-debug")
                     raise AssertionError("docs missing stdio MCP server")
-                if "0.3.0" not in dbody:
+                if "0.3.1" not in dbody:
                     raise AssertionError("docs missing API version")
                 shot(page, "docs-desktop")
                 page.set_viewport_size(MOBILE)

@@ -25,7 +25,7 @@ poa_layout_start('Docs', 'docs');
   "ok": true,
   "error": null,
   "cache": "fresh",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "body": {}
 }</pre>
 <p><code>version</code> is the explorer API version. Changes are additive. Changelog: <a href="api/changelog.php"><code>/api/changelog.php</code></a>. <code>cache</code> is <code>fresh</code>, <code>hit</code>, <code>stale</code>, or <code>miss</code>. On origin failure the explorer may serve last-good cache with <code>stale</code>. CORS is open for GET.</p>
@@ -40,14 +40,14 @@ poa_layout_start('Docs', 'docs');
 <tr><td>GET</td><td class="mono">/api/anchors.php</td><td>Base/Solana checkpoint receipts, newest first</td></tr>
 <tr><td>GET</td><td class="mono">/api/epochs.php</td><td>Closed epochs. Same field names and timestamps as minepoa <code>/api/epochs</code></td></tr>
 <tr><td>GET</td><td class="mono">/api/close.php?epoch={n}</td><td>One close object from that list, same keys</td></tr>
-<tr><td>GET</td><td class="mono">/api/pending.php</td><td>Last-close pending snapshot (panel size, age). Optional <code>a=</code></td></tr>
+<tr><td>GET</td><td class="mono">/api/pending.php</td><td>Last-close pending snapshot (panel size, age, seals when present). Optional <code>a=</code></td></tr>
 <tr><td>GET</td><td class="mono">/api/changelog.php</td><td>API changelog</td></tr>
 <tr><td>GET</td><td class="mono">/api/challenges.php</td><td>Challenge index. Large (hundreds of KB). Prefer status/txs unless you need it</td></tr>
 <tr><td>GET</td><td class="mono">/api/openapi.php</td><td>OpenAPI 3 stub</td></tr>
 </tbody>
 </table>
 </div>
-<p>Machine brief: <a href="llms.txt">/llms.txt</a>. OpenAPI: <a href="api/openapi.php">/api/openapi.php</a>. Close records in <code>/api/epochs.php</code> and <code>/api/close.php</code> keep minepoa’s field names so two sources can be compared field by field. Pending panel size is a closed-epoch snapshot, not a live draw. Address JSON may add a <code>grading</code> object without removing origin fields.</p>
+<p>Machine brief: <a href="llms.txt">/llms.txt</a>. OpenAPI: <a href="api/openapi.php">/api/openapi.php</a>. Close records in <code>/api/epochs.php</code> and <code>/api/close.php</code> keep minepoa’s field names so two sources can be compared field by field. Pending panel size is a closed-epoch snapshot, not a live draw. Seals on pending rows are the public close <code>grades</code> field (score + timestamp; grader when present). Quorum is not on those rows. Address JSON may add a <code>grading</code> object without removing origin fields, including an answer-txid join from this account’s challenge txs to settled rows.</p>
 <?php poa_panel_end(); ?>
 
 <?php poa_panel_start('Python SDK'); ?>

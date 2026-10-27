@@ -2,6 +2,12 @@
 
 Every JSON envelope includes `version`. Changes are additive.
 
+## 0.3.1 — 2026-10-27
+
+- Pending rows pass through public close `grades` as `[{score, ts, grader}]` when the field exists. Empty list is zero seals. Missing field stays `null` with a note. Quorum is still not on public pending rows.
+- Pending rows add `answer_txid` (the 64-hex answer id; it resolves as a challenge transaction).
+- Address `grading` joins this account’s challenge txs to last-close pending and to settled rows across closes by that answer txid (`challenge_joins`, `settled_by_answer_txid`).
+
 ## 0.3.0 — 2026-10-26
 
 - Envelope adds `version`. `ok`, `error`, `cache`, `body` unchanged.

@@ -148,6 +148,27 @@ function poa_tx_link(string $id): string
     return '<a class="mono" href="tx.php?id=' . rawurlencode($id) . '" title="' . poa_h($id) . '">' . poa_h(poa_short_id($id, 10)) . '</a>';
 }
 
+function poa_grades_label($grades, $count, $note): string
+{
+    if ($grades === null) {
+        return $note ? (string) $note : 'no grades field on this row';
+    }
+    if (!is_array($grades) || $grades === []) {
+        return '0 seals';
+    }
+    $n = is_numeric($count) ? (int) $count : count($grades);
+    $bits = [];
+    foreach ($grades as $g) {
+        if (!is_array($g)) {
+            continue;
+        }
+        $sc = array_key_exists('score', $g) ? (string) $g['score'] : '?';
+        $ts = isset($g['ts']) ? poa_format_ts($g['ts']) : '';
+        $bits[] = $sc . ($ts !== '' && $ts !== '—' ? ' @ ' . $ts : '');
+    }
+    return (string) $n . ' · ' . implode(', ', $bits);
+}
+
 function poa_addr_link(string $addr): string
 {
     $addr = trim($addr);

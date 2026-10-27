@@ -8,7 +8,7 @@ OpenAPI: https://poa.explorer.zero1.network/api/openapi.php
 Read-only Proof of Agent ledger explorer. Public JSON only. No wallet. No keys. No sending POA. Never /api/hosted/*.
 
 Envelope on every JSON route:
-{"ok": true|false, "error": null|string, "cache": "fresh"|"hit"|"stale"|"miss", "version": "0.3.0", "body": ...}
+{"ok": true|false, "error": null|string, "cache": "fresh"|"hit"|"stale"|"miss", "version": "0.3.1", "body": ...}
 Changes are additive. Changelog: GET /api/changelog.php
 
 GET /api/status.php — chain tip, checkpoint height, supply, holders
@@ -18,7 +18,7 @@ GET /api/address.php?a={poa1...}  (alias: address=) — may include additive gra
 GET /api/anchors.php — Base/Solana checkpoint receipts
 GET /api/epochs.php — closed epochs; same field names/timestamps as minepoa /api/epochs
 GET /api/close.php?epoch={n} — one close object, same keys
-GET /api/pending.php — last-close pending snapshot (panel size, since). Not a live draw.
+GET /api/pending.php — last-close pending snapshot (panel size, since, grades when present, answer_txid). Not a live draw.
 GET /api/challenges.php — challenge index; large payload
 
 Ledger facts:

@@ -13,7 +13,7 @@ $rows = is_array($body['rows'] ?? null) ? $body['rows'] : [];
 
 poa_layout_start('Pending', 'pending');
 echo '<h1>Pending</h1>';
-echo '<p class="hint">Panel size and age come from the latest <em>closed</em> epoch’s <code>basis.pending</code> on minepoa <code>/api/epochs</code>. That is a snapshot, not a live jury draw. Author is filled only when that answer still appears in the current <code>/api/challenge-index</code> (older leftover rows often have no author in public JSON). Public JSON does not include grades received or quorum on those pending rows — those columns stay blank rather than guessed.</p>';
+echo '<p class="hint">Panel size, age, and seals come from the latest <em>closed</em> epoch’s <code>basis.pending</code> on minepoa <code>/api/epochs</code>. That is a snapshot, not a live jury draw. Filtering by account matches challenge-index author <em>or</em> that account’s challenge transaction ids (leftover rows often have no author in public JSON). Seals are <code>grades: [{score, ts, grader}]</code> when that field is on the row — an empty list is zero seals, not a guess. Quorum is still not on public pending rows, so that column stays blank. The answer id is the challenge transaction id.</p>';
 
 if ($err) {
     poa_error_box((string) $err);
@@ -25,6 +25,9 @@ poa_stats([
     'Pending rows' => poa_h((string) ($body['total'] ?? 0)),
     'With panel' => poa_h((string) ($body['with_panel'] ?? 0)),
     'Without panel' => poa_h((string) ($body['without_panel'] ?? 0)),
+    'With seals' => poa_h((string) ($body['with_seals'] ?? 0)),
+    'Zero seals' => poa_h((string) ($body['zero_seals'] ?? 0)),
+    'No grades field' => poa_h((string) ($body['missing_grades_field'] ?? 0)),
     'Settled this close' => poa_h((string) ($body['settled_this_close'] ?? 0)),
 ]);
 echo '<p class="hint">' . poa_h((string) ($body['live_panel_note'] ?? '')) . '</p>';
@@ -62,12 +65,14 @@ foreach ($rows as $p) {
     $expiry = (int) ($p['expiry_epochs'] ?? POA_EXPLORER_EPOCH_EXPIRY);
     $left = is_int($since) || is_numeric($since) ? ($expiry - (int) $since) : null;
     echo '<tr>';
-    echo '<td class="mono">' . poa_h(poa_short_id((string) ($p['answer'] ?? ''), 8)) . '</td>';
+    $answerId = (string) ($p['answer_txid'] ?? $p['answer'] ?? '');
+    echo '<td>' . poa_tx_link($answerId) . '</td>';
     echo '<td>' . poa_addr_link((string) ($p['author'] ?? '')) . '</td>';
     echo '<td>' . poa_h((string) ($p['kind'] ?? '—')) . '</td>';
     echo '<td>' . poa_h((string) (int) ($p['panel_size'] ?? 0)) . '</td>';
     echo '<td>' . ($panelBits ? implode(' ', $panelBits) : '—') . '</td>';
-    echo '<td title="' . poa_h((string) ($p['grades_note'] ?? '')) . '">—</td>';
+    $gLabel = poa_grades_label($p['grades'] ?? null, $p['grades_count'] ?? null, $p['grades_note'] ?? '');
+    echo '<td title="' . poa_h($gLabel) . '">' . poa_h($gLabel) . '</td>';
     echo '<td title="' . poa_h((string) ($p['quorum_note'] ?? '')) . '">—</td>';
     echo '<td>' . poa_h($since === null || $since === '' ? '—' : ((string) $since . ' epochs')) . '</td>';
     echo '<td>' . poa_h($left === null ? '—' : ((string) $left . ' left / ' . (string) $expiry)) . '</td>';
