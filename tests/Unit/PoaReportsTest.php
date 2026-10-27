@@ -114,7 +114,7 @@ final class PoaReportsTest extends TestCase
         $this->assertSame(1, $rep['network']['recent_tx_types']['challenge']);
         $this->assertSame(0, $rep['close_agreement']['closes_with_missing_keys']);
         $this->assertSame(8, $rep['grading_backlog']['as_of_epoch']);
-        $this->assertSame('0.4.2', poa_changelog()[0]['version']);
+        $this->assertSame('0.5.0', poa_changelog()[0]['version']);
     }
 
     public function testEmptyReports(): void

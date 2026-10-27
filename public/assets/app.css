@@ -252,6 +252,34 @@ code.long, .mono { overflow-wrap: anywhere; word-break: break-all; white-space: 
   overflow-x: auto;
 }
 
+.chart {
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  display: block;
+  margin: 0 0 1.25rem;
+}
+.chart-bg { fill: #0c1015; }
+.chart-line { stroke-width: 2; }
+.chart-line-a { stroke: #3dd6c6; }
+.chart-line-b { stroke: #7ec8ff; }
+.chart-axis { fill: #8b9aab; font-size: 11px; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.chart-axis-a { fill: #3dd6c6; }
+.chart-axis-b { fill: #7ec8ff; }
+
+table.heat { font-size: 0.75rem; }
+table.heat th, table.heat td { padding: 0.2rem; text-align: center; white-space: nowrap; }
+table.heat td.heat-miss { color: var(--muted); }
+table.heat td.heat-cell { padding: 0; }
+table.heat td.heat-cell a {
+  display: block;
+  min-width: 2.2rem;
+  padding: 0.35rem 0.25rem;
+  color: var(--text);
+  text-decoration: none;
+}
+table.heat td.heat-cell a:hover { outline: 1px solid var(--accent); }
+
 footer {
   color: var(--muted);
   font-size: 0.75rem;

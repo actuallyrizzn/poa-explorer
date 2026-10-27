@@ -390,3 +390,5 @@ function poa_reports_row(): array
         'body' => is_array($body) ? $body : [],
     ];
 }
+
+require_once __DIR__ . '/reports_ui.php';

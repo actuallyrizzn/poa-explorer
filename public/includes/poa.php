@@ -369,6 +369,13 @@ function poa_changelog(): array
 {
     return [
         [
+            'version' => '0.5.0',
+            'date' => '2026-10-27',
+            'changes' => [
+                'Reports UI: headline deltas, inline SVG trends (last 30 closes), one-close cohort drill-down (?epoch=), still-pending birth×close grid. No Chart.js. JSON /api/reports.php body unchanged.',
+            ],
+        ],
+        [
             'version' => '0.4.2',
             'date' => '2026-10-27',
             'changes' => [

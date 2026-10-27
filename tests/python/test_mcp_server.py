@@ -19,7 +19,7 @@ class McpServerTest(unittest.TestCase):
     def test_initialize(self) -> None:
         out = mod.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         self.assertEqual("poa-explorer", out["result"]["serverInfo"]["name"])
-        self.assertEqual("0.4.2", out["result"]["serverInfo"]["version"])
+        self.assertEqual("0.5.0", out["result"]["serverInfo"]["version"])
         self.assertIn("tools", out["result"]["capabilities"])
 
     def test_tools_list(self) -> None:

@@ -172,15 +172,33 @@ def main() -> int:
                 page.set_viewport_size({"width": 1280, "height": 1400})
                 page.goto(base + "/reports.php", wait_until="domcontentloaded", timeout=90000)
                 rbody = page.inner_text("body")
-                if "settlement by birth cohort" not in rbody.lower():
+                if "settlement by close" not in rbody.lower():
                     shot(page, "reports-debug")
                     raise AssertionError("reports page missing settlement section")
                 if "no wallet" not in rbody.lower():
                     raise AssertionError("reports missing no-wallet bound")
+                if rbody.lower().count("cohorts at close") != 1:
+                    shot(page, "reports-debug")
+                    raise AssertionError("expected one cohort drill-down, got " + str(rbody.lower().count("cohorts at close")))
+                svg_n = page.locator("svg.chart").count()
+                if svg_n < 3:
+                    shot(page, "reports-debug")
+                    raise AssertionError("reports missing SVG charts: " + str(svg_n))
                 shot(page, "reports-desktop")
                 page.set_viewport_size(MOBILE)
                 page.goto(base + "/reports.php", wait_until="domcontentloaded", timeout=90000)
                 shot(page, "reports-mobile")
+                page.set_viewport_size({"width": 1280, "height": 1400})
+                page.goto(base + "/reports.php?epoch=8", wait_until="domcontentloaded", timeout=90000)
+                r8 = page.inner_text("body")
+                if "cohorts at close 8" not in r8.lower():
+                    shot(page, "reports-epoch8-debug")
+                    raise AssertionError("epoch=8 missing cohort heading")
+                if "345" not in r8:
+                    shot(page, "reports-epoch8-debug")
+                    raise AssertionError("epoch=8 missing Copperwick settled 345")
+                page.get_by_role("heading", name="Cohorts at close 8").scroll_into_view_if_needed()
+                shot(page, "reports-epoch8-desktop")
                 page.set_viewport_size(DESKTOP)
 
                 page.goto(base + "/search.php?q=" + urllib.parse.quote(KODA_ADDR), wait_until="domcontentloaded", timeout=45000)
@@ -203,7 +221,7 @@ def main() -> int:
                 if "mcp/server.py" not in dbody.lower() and "standard mcp" not in dbody.lower():
                     shot(page, "docs-debug")
                     raise AssertionError("docs missing stdio MCP server")
-                if "0.4.2" not in dbody:
+                if "0.5.0" not in dbody:
                     raise AssertionError("docs missing API version")
                 shot(page, "docs-desktop")
                 page.set_viewport_size(MOBILE)

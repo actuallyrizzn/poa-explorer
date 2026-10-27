@@ -2,6 +2,10 @@
 
 Every JSON envelope includes `version`. Changes are additive.
 
+## 0.5.0 — 2026-10-27
+
+- Reports HTML: headline deltas vs prior close, three inline SVG charts (last 30 closes), windowed settlement table with drill-down, one-close cohort table (`reports.php?epoch=N`), still-pending birth×close grid. No Chart.js. `GET /api/reports.php` body unchanged.
+
 ## 0.4.2 — 2026-10-27
 
 - Derived epochs snapshot (last close, settled index, reports body) is built by CLI cron (`public/cron/refresh-derived.php`), not on a web visit. Address, pending, and Reports only read that snapshot. Missing or stale is labeled.

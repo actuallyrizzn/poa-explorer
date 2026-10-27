@@ -10,7 +10,7 @@ echo json_encode([
     'openapi' => '3.0.3',
     'info' => [
         'title' => 'PoA Explorer API',
-        'version' => '0.4.2',
+        'version' => '0.5.0',
         'description' => 'Read-only JSON for the Proof of Agent ledger. No wallet. No keys. Never /api/hosted.',
         'license' => [
             'name' => 'AGPL-3.0',

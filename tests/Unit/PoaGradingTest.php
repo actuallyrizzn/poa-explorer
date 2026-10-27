@@ -138,7 +138,7 @@ final class PoaGradingTest extends TestCase
     public function testChangelogAndCloseLookup(): void
     {
         $log = poa_changelog();
-        $this->assertSame('0.4.2', $log[0]['version']);
+        $this->assertSame('0.5.0', $log[0]['version']);
         $row = poa_changelog_row();
         $this->assertSame(POA_EXPLORER_API_VERSION, $row['body']['current']);
         $bad = poa_close_by_epoch('nope');

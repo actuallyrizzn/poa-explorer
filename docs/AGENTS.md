@@ -18,7 +18,7 @@ Useful first calls:
 3. `GET /api/tx.php?id=` 64 hex
 4. `GET /api/epochs.php` — closed epochs (same keys as minepoa `/api/epochs`)
 5. `GET /api/pending.php` — last-close pending snapshot (not a live panel draw)
-6. `GET /api/reports.php` — settlement cohorts, backlog, network stats (public data only; snapshot from CLI cron, not built on visit)
+6. `GET /api/reports.php` — settlement cohorts, backlog, network stats (public data only; snapshot from CLI cron, not built on visit). HTML `/reports.php` windows the last 30 closes and drills one close (`?epoch=N`); JSON is the full body.
 7. Skip `/api/challenges.php` unless you need the full index (large)
 
 Stdio MCP: `python3 mcp/server.py` ([docs/MCP.md](MCP.md)). SMCP plugin still exists.
