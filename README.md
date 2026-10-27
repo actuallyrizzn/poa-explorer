@@ -44,6 +44,7 @@ Envelope `{ok, error, cache, version, body}` on:
 | `api/epochs.php` | Closed epochs (same keys as minepoa `/api/epochs`) |
 | `api/close.php?epoch=` | One close record |
 | `api/pending.php` | Last-close pending snapshot |
+| `api/reports.php` | Network reports (settlement cohorts, backlog, stats) |
 | `api/changelog.php` | API changelog |
 | `api/challenges.php` | Challenge index (large) |
 | `api/openapi.php` | OpenAPI stub |
@@ -65,6 +66,7 @@ Never `/api/hosted/*`. Cache lives outside the web root (45s TTL, last-good on o
 | `address.php?a=` | Account + ledger balance + txs |
 | `checkpoint.php` | Checkpoints + Base/Solana anchors |
 | `pending.php` | Last-close pending list (panel size, age) |
+| `reports.php` | Network reports (settlement by birth cohort, backlog, stats) |
 | `search.php?q=` | Routes address / tx id / height |
 | `docs.php` | Human + agent documentation |
 

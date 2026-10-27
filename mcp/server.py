@@ -27,7 +27,7 @@ from poa_explorer import PoaExplorerClient, PoaExplorerError  # noqa: E402
 
 PROTOCOL = "2024-11-05"
 SERVER_NAME = "poa-explorer"
-SERVER_VERSION = "0.3.1"
+SERVER_VERSION = "0.4.0"
 BASE = os.environ.get("POA_EXPLORER_BASE_URL", "https://poa.explorer.zero1.network").rstrip("/")
 
 TOOLS = [
@@ -80,6 +80,7 @@ TOOLS = [
         },
     },
     {"name": "changelog", "description": "Explorer API changelog", "inputSchema": {"type": "object", "properties": {}}},
+    {"name": "reports", "description": "Network reports (settlement cohorts, backlog, stats). Public data only.", "inputSchema": {"type": "object", "properties": {}}},
 ]
 
 
@@ -116,6 +117,8 @@ def _call_tool(name: str, args: dict[str, Any]) -> Any:
         return c.pending(query or None)
     if name == "changelog":
         return c.changelog()
+    if name == "reports":
+        return c.reports()
     raise ValueError("unknown tool: " + name)
 
 

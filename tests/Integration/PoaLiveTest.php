@@ -60,4 +60,29 @@ final class PoaLiveTest extends TestCase
         $this->assertNotEmpty($row['body']);
         $this->assertArrayHasKey('epoch', $row['body'][0]);
     }
+
+    public function testReportsEpoch8CopperwickCase(): void
+    {
+        $row = poa_reports_row();
+        $this->assertIsArray($row['body']);
+        $closes = $row['body']['settlement']['rows'] ?? [];
+        $e8 = null;
+        foreach ((array) $closes as $c) {
+            if (is_array($c) && (int) ($c['epoch'] ?? -1) === 8) {
+                $e8 = $c;
+                break;
+            }
+        }
+        if ($e8 === null) {
+            $this->markTestSkipped('epoch 8 close not in public epochs');
+        }
+        $this->assertSame(345, $e8['settled']);
+        $birth3 = 0;
+        foreach ((array) ($e8['cohorts'] ?? []) as $co) {
+            if (is_array($co) && (int) ($co['birth_epoch'] ?? -1) === 3) {
+                $birth3 = (int) ($co['settled'] ?? 0);
+            }
+        }
+        $this->assertSame(0, $birth3);
+    }
 }

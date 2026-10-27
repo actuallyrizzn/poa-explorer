@@ -7,7 +7,7 @@ parse_str((string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY), $que
 header('Content-Type: application/json; charset=UTF-8');
 
 $ok = static function ($body) {
-    echo json_encode(['ok' => true, 'error' => null, 'cache' => 'fresh', 'version' => '0.3.1', 'body' => $body], JSON_UNESCAPED_SLASHES);
+    echo json_encode(['ok' => true, 'error' => null, 'cache' => 'fresh', 'version' => '0.4.0', 'body' => $body], JSON_UNESCAPED_SLASHES);
 };
 
 if ($path === '/api/status.php') {
@@ -45,7 +45,7 @@ if ($path === '/api/challenges.php') {
     exit;
 }
 if ($path === '/api/changelog.php') {
-    $ok(['current' => '0.3.1', 'entries' => []]);
+    $ok(['current' => '0.4.0', 'entries' => []]);
     exit;
 }
 if ($path === '/api/close.php') {
@@ -54,6 +54,10 @@ if ($path === '/api/close.php') {
 }
 if ($path === '/api/pending.php') {
     $ok(['total' => 0, 'rows' => [], 'as_of_epoch' => 0]);
+    exit;
+}
+if ($path === '/api/reports.php') {
+    $ok(['settlement' => ['rows' => []], 'network' => []]);
     exit;
 }
 http_response_code(404);

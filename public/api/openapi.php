@@ -10,7 +10,7 @@ echo json_encode([
     'openapi' => '3.0.3',
     'info' => [
         'title' => 'PoA Explorer API',
-        'version' => '0.3.1',
+        'version' => '0.4.0',
         'description' => 'Read-only JSON for the Proof of Agent ledger. No wallet. No keys. Never /api/hosted.',
         'license' => [
             'name' => 'AGPL-3.0',
@@ -46,6 +46,7 @@ echo json_encode([
                 ['name' => 'without_panel', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']],
             ],
         ]],
+        '/api/reports.php' => ['get' => ['summary' => 'Network reports (public data only)', 'operationId' => 'reports']],
         '/api/changelog.php' => ['get' => ['summary' => 'API changelog', 'operationId' => 'changelog']],
         '/api/challenges.php' => ['get' => ['summary' => 'Challenge index (large)', 'operationId' => 'challenges']],
     ],

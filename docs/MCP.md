@@ -27,7 +27,7 @@ Example MCP client config:
 }
 ```
 
-Tools: `status`, `txs`, `tx`, `address`, `anchors`, `epochs`, `close`, `challenges`, `pending`, `changelog`.
+Tools: `status`, `txs`, `tx`, `address`, `anchors`, `epochs`, `close`, `challenges`, `pending`, `changelog`, `reports`.
 
 `epochs` / `close` return the same close-record field names and timestamps as minepoa `GET /api/epochs` (`epoch`, `ts`, `pool`, `note`, `basis`, `weights`, `challenges`, `propagation`, `rewards`), wrapped in the explorer envelope.
 

@@ -309,6 +309,14 @@ function poa_changelog(): array
 {
     return [
         [
+            'version' => '0.4.0',
+            'date' => '2026-10-27',
+            'changes' => [
+                'Reports tab + GET /api/reports.php: settlement by birth cohort, network-wide grading backlog, stats strip, close-key agreement, establishment/payouts. Public data only.',
+                'Birth epoch for settled rows is prior-close pending.since (prior_epoch − since). Still-pending uses this close epoch − since. Live challenge-index epoch is not used for historical rows.',
+            ],
+        ],
+        [
             'version' => '0.3.1',
             'date' => '2026-10-27',
             'changes' => [
@@ -851,3 +859,5 @@ function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?
         'jury_as_grader' => $juryMine,
     ];
 }
+
+require_once __DIR__ . '/reports.php';

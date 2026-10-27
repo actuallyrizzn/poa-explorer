@@ -2,6 +2,11 @@
 
 Every JSON envelope includes `version`. Changes are additive.
 
+## 0.4.0 — 2026-10-27
+
+- Reports tab + `GET /api/reports.php`: settlement by birth cohort, grading backlog, network stats, close-key agreement, establishment/payouts. Public data only.
+- Birth epoch for settled rows is prior-close `pending.since` (`prior_epoch − since`). Still-pending uses this close epoch − `since`. Live challenge-index `epoch` is not used for historical rows.
+
 ## 0.3.1 — 2026-10-27
 
 - Pending rows pass through public close `grades` as `[{score, ts, grader}]` when the field exists. Empty list is zero seals. Missing field stays `null` with a note. Quorum is still not on public pending rows.

@@ -17,7 +17,7 @@ Read-only public chain data. No wallet, no keys, no sending POA. The explorer ne
 Every JSON route returns:
 
 ```json
-{"ok": true, "error": null, "cache": "fresh", "version": "0.3.1", "body": {}}
+{"ok": true, "error": null, "cache": "fresh", "version": "0.4.0", "body": {}}
 ```
 
 `version` is the explorer API version (changelog: `/api/changelog.php`). Changes are additive. `cache` is `fresh`, `hit`, `stale`, or `miss`. Origin failure may still return last-good `body` with `cache: "stale"`. GET CORS is `*`.
@@ -34,6 +34,7 @@ Every JSON route returns:
 | GET | `/api/epochs.php` | Closed epochs. `body` is the minepoa `/api/epochs` list with the same field names and timestamps (`epoch`, `ts`, `pool`, `note`, `basis`, `weights`, `challenges`, `propagation`, `rewards`) |
 | GET | `/api/close.php?epoch={n}` | One close object from that list, same keys |
 | GET | `/api/pending.php` | Last-close `basis.pending` snapshot (panel size, `since`, `grades` as `{score, ts, grader}` when present, `answer_txid`). Optional `a=`, `without_panel=1`, `limit=` |
+| GET | `/api/reports.php` | Network reports (settlement cohorts, backlog, stats, close-key agreement, payouts). Public data only |
 | GET | `/api/changelog.php` | API changelog |
 | GET | `/api/challenges.php` | Challenge index. Large. Prefer other routes unless you need it |
 | GET | `/api/openapi.php` | OpenAPI 3 stub |

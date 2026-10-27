@@ -37,6 +37,7 @@ function poa_layout_start(string $title, string $nav = 'home'): void
       <a href="index.php"<?php echo $nav === 'home' ? ' aria-current="page"' : ''; ?>>Tip</a>
       <a href="checkpoint.php"<?php echo $nav === 'checkpoint' ? ' aria-current="page"' : ''; ?>>Checkpoints</a>
       <a href="pending.php"<?php echo $nav === 'pending' ? ' aria-current="page"' : ''; ?>>Pending</a>
+      <a href="reports.php"<?php echo $nav === 'reports' ? ' aria-current="page"' : ''; ?>>Reports</a>
       <a href="docs.php"<?php echo $nav === 'docs' ? ' aria-current="page"' : ''; ?>>Docs</a>
     </nav>
   </header>

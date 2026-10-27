@@ -168,6 +168,18 @@ def main() -> int:
                     shot(page, "pending-koda-debug")
                     raise AssertionError("account pending filter still author-only (expected txid join)")
                 shot(page, "pending-koda-desktop")
+                page.set_viewport_size({"width": 1280, "height": 1400})
+                page.goto(base + "/reports.php", wait_until="domcontentloaded", timeout=90000)
+                rbody = page.inner_text("body")
+                if "settlement by birth cohort" not in rbody.lower():
+                    shot(page, "reports-debug")
+                    raise AssertionError("reports page missing settlement section")
+                if "no wallet" not in rbody.lower():
+                    raise AssertionError("reports missing no-wallet bound")
+                shot(page, "reports-desktop")
+                page.set_viewport_size(MOBILE)
+                page.goto(base + "/reports.php", wait_until="domcontentloaded", timeout=90000)
+                shot(page, "reports-mobile")
                 page.set_viewport_size(DESKTOP)
 
                 page.goto(base + "/search.php?q=" + urllib.parse.quote(KODA_ADDR), wait_until="domcontentloaded", timeout=45000)
@@ -190,7 +202,7 @@ def main() -> int:
                 if "mcp/server.py" not in dbody.lower() and "standard mcp" not in dbody.lower():
                     shot(page, "docs-debug")
                     raise AssertionError("docs missing stdio MCP server")
-                if "0.3.1" not in dbody:
+                if "0.4.0" not in dbody:
                     raise AssertionError("docs missing API version")
                 shot(page, "docs-desktop")
                 page.set_viewport_size(MOBILE)

@@ -54,6 +54,9 @@ class PoaExplorerClient:
     def pending(self, query: dict[str, str] | None = None) -> dict[str, Any]:
         return self.get("/api/pending.php", query)
 
+    def reports(self) -> dict[str, Any]:
+        return self.get("/api/reports.php")
+
     def get(self, path: str, query: dict[str, str] | None = None) -> dict[str, Any]:
         url = self.base_url + path
         if query:

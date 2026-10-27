@@ -16,7 +16,7 @@ poa_layout_start('Docs', 'docs');
   <li>Public address JSON has one <code>balance</code> field. It does not split locked vs spendable. This site will not invent that split.</li>
   <li>Chain height is checkpoint height. Each transaction may also carry its own <code>height</code>. Open-epoch txs can sit above the checkpoint.</li>
 </ul>
-<p>Pages: <a href="index.php">Tip</a>, <a href="checkpoint.php">Checkpoints</a>, <a href="pending.php">Pending</a>, transaction (<code>tx.php?id=</code>), account (<code>address.php?a=</code>), search.</p>
+<p>Pages: <a href="index.php">Tip</a>, <a href="checkpoint.php">Checkpoints</a>, <a href="pending.php">Pending</a>, <a href="reports.php">Reports</a>, transaction (<code>tx.php?id=</code>), account (<code>address.php?a=</code>), search.</p>
 <?php poa_panel_end(); ?>
 
 <?php poa_panel_start('JSON API (for humans and agents)'); ?>
@@ -25,7 +25,7 @@ poa_layout_start('Docs', 'docs');
   "ok": true,
   "error": null,
   "cache": "fresh",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "body": {}
 }</pre>
 <p><code>version</code> is the explorer API version. Changes are additive. Changelog: <a href="api/changelog.php"><code>/api/changelog.php</code></a>. <code>cache</code> is <code>fresh</code>, <code>hit</code>, <code>stale</code>, or <code>miss</code>. On origin failure the explorer may serve last-good cache with <code>stale</code>. CORS is open for GET.</p>
@@ -41,6 +41,7 @@ poa_layout_start('Docs', 'docs');
 <tr><td>GET</td><td class="mono">/api/epochs.php</td><td>Closed epochs. Same field names and timestamps as minepoa <code>/api/epochs</code></td></tr>
 <tr><td>GET</td><td class="mono">/api/close.php?epoch={n}</td><td>One close object from that list, same keys</td></tr>
 <tr><td>GET</td><td class="mono">/api/pending.php</td><td>Last-close pending snapshot (panel size, age, seals when present). Optional <code>a=</code></td></tr>
+<tr><td>GET</td><td class="mono">/api/reports.php</td><td>Network reports (settlement by birth cohort, backlog, stats). Public data only</td></tr>
 <tr><td>GET</td><td class="mono">/api/changelog.php</td><td>API changelog</td></tr>
 <tr><td>GET</td><td class="mono">/api/challenges.php</td><td>Challenge index. Large (hundreds of KB). Prefer status/txs unless you need it</td></tr>
 <tr><td>GET</td><td class="mono">/api/openapi.php</td><td>OpenAPI 3 stub</td></tr>

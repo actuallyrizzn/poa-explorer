@@ -19,13 +19,13 @@ from poa_explorer import PoaExplorerClient, PoaExplorerError  # noqa: E402
 
 BASE = os.environ.get("POA_EXPLORER_BASE_URL", "https://poa.explorer.zero1.network").rstrip("/")
 
-COMMANDS = ("status", "txs", "tx", "address", "anchors", "epochs", "close", "pending", "challenges", "changelog", "tool-help")
+COMMANDS = ("status", "txs", "tx", "address", "anchors", "epochs", "close", "pending", "challenges", "changelog", "reports", "tool-help")
 
 PLUGIN_SPEC = {
     "contract_version": "1.0",
     "plugin": {
         "name": "poa_explorer",
-        "version": "0.3.1",
+        "version": "0.4.0",
         "description": (
             "Read-only Proof of Agent explorer (https://poa.explorer.zero1.network). "
             "No API key. No wallet."
@@ -70,6 +70,7 @@ PLUGIN_SPEC = {
             "parameters": [],
         },
         {"name": "changelog", "description": "Explorer API changelog", "parameters": []},
+        {"name": "reports", "description": "Network reports (public data only)", "parameters": []},
     ],
 }
 
@@ -98,6 +99,7 @@ def main() -> int:
     pen.add_argument("--a", "--address", dest="a", default="")
     sub.add_parser("challenges")
     sub.add_parser("changelog")
+    sub.add_parser("reports")
     sub.add_parser("tool-help")
 
     args = p.parse_args()
@@ -145,6 +147,8 @@ def main() -> int:
             out = client.challenges()
         elif args.cmd == "changelog":
             out = client.changelog()
+        elif args.cmd == "reports":
+            out = client.reports()
         else:
             print(json.dumps({"status": "error", "error": "unknown command"}))
             return 2

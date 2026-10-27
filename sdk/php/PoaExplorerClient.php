@@ -66,6 +66,11 @@ final class PoaExplorerClient
         return $this->get('/api/pending.php', $query);
     }
 
+    public function reports(): array
+    {
+        return $this->get('/api/reports.php');
+    }
+
     /**
      * @param array<string,string> $query
      * @return array<string,mixed>
