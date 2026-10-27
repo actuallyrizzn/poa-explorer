@@ -256,8 +256,10 @@ code.long, .mono { overflow-wrap: anywhere; word-break: break-all; white-space: 
   width: 100%;
   max-width: 640px;
   height: auto;
+  aspect-ratio: 640 / 220;
   display: block;
   margin: 0 0 1.25rem;
+  overflow: visible;
 }
 .chart-bg { fill: #0c1015; }
 .chart-line { stroke-width: 2; }

@@ -25,7 +25,7 @@ poa_layout_start('Docs', 'docs');
   "ok": true,
   "error": null,
   "cache": "fresh",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "body": {}
 }</pre>
 <p><code>version</code> is the explorer API version. Changes are additive. Changelog: <a href="api/changelog.php"><code>/api/changelog.php</code></a>. <code>cache</code> is <code>fresh</code>, <code>hit</code>, <code>stale</code>, or <code>miss</code>. On origin failure the explorer may serve last-good cache with <code>stale</code>. CORS is open for GET.</p>

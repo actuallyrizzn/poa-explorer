@@ -196,20 +196,29 @@ function poa_svg_dual_line(array $labels, array $left, array $right, string $lef
     $rightPts = $poly($right, $yRight, $n, $xAt);
     $last = $labels[$n - 1] ?? '';
     $first = $labels[0] ?? '';
-    $svg = '<svg class="chart" viewBox="0 0 ' . $w . ' ' . $h . '" role="img" aria-label="'
-        . poa_h($leftName . ' and ' . $rightName . ' over closes') . '">';
-    $svg .= '<rect class="chart-bg" x="0" y="0" width="' . $w . '" height="' . $h . '"/>';
+    $aria = $rightName === ''
+        ? ($leftName . ' over closes')
+        : ($leftName . ' and ' . $rightName . ' over closes');
+    $svg = '<svg class="chart" width="' . $w . '" height="' . $h . '" viewBox="0 0 ' . $w . ' ' . $h
+        . '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="' . poa_h($aria) . '">';
+    $svg .= '<rect class="chart-bg" fill="#0c1015" x="0" y="0" width="' . $w . '" height="' . $h . '"/>';
     if ($leftPts !== '') {
-        $svg .= '<polyline class="chart-line chart-line-a" fill="none" points="' . poa_h($leftPts) . '"/>';
+        $svg .= '<polyline class="chart-line chart-line-a" fill="none" stroke="#3dd6c6" stroke-width="2" points="'
+            . poa_h($leftPts) . '"/>';
     }
     if ($rightName !== '' && $rightPts !== '') {
-        $svg .= '<polyline class="chart-line chart-line-b" fill="none" points="' . poa_h($rightPts) . '"/>';
+        $svg .= '<polyline class="chart-line chart-line-b" fill="none" stroke="#7ec8ff" stroke-width="2" points="'
+            . poa_h($rightPts) . '"/>';
     }
-    $svg .= '<text class="chart-axis" x="' . $pl . '" y="' . ($h - 10) . '">' . poa_h((string) $first) . '</text>';
-    $svg .= '<text class="chart-axis" x="' . ($w - $pr) . '" y="' . ($h - 10) . '" text-anchor="end">' . poa_h((string) $last) . '</text>';
-    $svg .= '<text class="chart-axis chart-axis-a" x="8" y="' . ($pt + 8) . '">' . poa_h($leftName) . '</text>';
+    $svg .= '<text class="chart-axis" fill="#8b9aab" font-size="11" x="' . $pl . '" y="' . ($h - 10) . '">'
+        . poa_h((string) $first) . '</text>';
+    $svg .= '<text class="chart-axis" fill="#8b9aab" font-size="11" x="' . ($w - $pr) . '" y="' . ($h - 10)
+        . '" text-anchor="end">' . poa_h((string) $last) . '</text>';
+    $svg .= '<text class="chart-axis chart-axis-a" fill="#3dd6c6" font-size="11" x="8" y="' . ($pt + 8) . '">'
+        . poa_h($leftName) . '</text>';
     if ($rightName !== '') {
-        $svg .= '<text class="chart-axis chart-axis-b" x="' . ($w - 8) . '" y="' . ($pt + 8) . '" text-anchor="end">' . poa_h($rightName) . '</text>';
+        $svg .= '<text class="chart-axis chart-axis-b" fill="#7ec8ff" font-size="11" x="' . ($w - 8) . '" y="'
+            . ($pt + 8) . '" text-anchor="end">' . poa_h($rightName) . '</text>';
     }
     $svg .= '</svg>';
     return $svg;

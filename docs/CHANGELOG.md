@@ -2,6 +2,10 @@
 
 Every JSON envelope includes `version`. Changes are additive.
 
+## 0.5.1 — 2026-10-27
+
+- Reports SVG charts use inline `stroke` / `width` / `height` so they render even with a cached pre-0.5 stylesheet. Single-series aria labels fixed. `app.css?v=` follows the API version.
+
 ## 0.5.0 — 2026-10-27
 
 - Reports HTML: headline deltas vs prior close, three inline SVG charts (last 30 closes), windowed settlement table with drill-down, one-close cohort table (`reports.php?epoch=N`), still-pending birth×close grid. No Chart.js. `GET /api/reports.php` body unchanged.

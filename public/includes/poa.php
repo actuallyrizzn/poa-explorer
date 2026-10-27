@@ -369,6 +369,13 @@ function poa_changelog(): array
 {
     return [
         [
+            'version' => '0.5.1',
+            'date' => '2026-10-27',
+            'changes' => [
+                'Reports charts draw with inline stroke and size so they stay visible if an old stylesheet is cached. Single-series chart labels no longer read “and over closes.” CSS is cache-busted by API version.',
+            ],
+        ],
+        [
             'version' => '0.5.0',
             'date' => '2026-10-27',
             'changes' => [

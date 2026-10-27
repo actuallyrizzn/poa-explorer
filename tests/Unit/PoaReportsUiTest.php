@@ -73,12 +73,19 @@ final class PoaReportsUiTest extends TestCase
         $this->assertStringContainsString('<svg', $svg);
         $this->assertStringContainsString('polyline', $svg);
         $this->assertStringContainsString('Settled', $svg);
+        $this->assertStringContainsString('stroke="#3dd6c6"', $svg);
+        $this->assertStringContainsString('width="640"', $svg);
+        $this->assertStringContainsString('Settled and Still pending over closes', $svg);
         $empty = poa_svg_dual_line([], [], [], 'A', 'B');
         $this->assertStringContainsString('No close points', $empty);
+        $single = poa_svg_single_line(['0', '1'], [1, 3], 'Still pending');
+        $this->assertStringContainsString('aria-label="Still pending over closes"', $single);
+        $this->assertStringNotContainsString('and  over', $single);
+        $this->assertStringNotContainsString('chart-line-b', $single);
     }
 
     public function testChangelogReportsUi(): void
     {
-        $this->assertSame('0.5.0', poa_changelog()[0]['version']);
+        $this->assertSame('0.5.1', poa_changelog()[0]['version']);
     }
 }

@@ -20,7 +20,7 @@ function poa_layout_start(string $title, string $nav = 'home'): void
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/app.css">
+  <link rel="stylesheet" href="assets/app.css?v=<?php echo rawurlencode(POA_EXPLORER_API_VERSION); ?>">
 </head>
 <body>
   <header>

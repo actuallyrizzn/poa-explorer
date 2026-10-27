@@ -81,6 +81,26 @@ def shot(page, name: str) -> None:
     print(f"shot {dest}")
 
 
+def assert_charts_drawn(page, prefix: str) -> None:
+    charts = page.locator("svg.chart")
+    n = charts.count()
+    if n < 3:
+        shot(page, prefix + "-debug")
+        raise AssertionError("reports missing SVG charts: " + str(n))
+    for i in range(n):
+        box = charts.nth(i).bounding_box()
+        if box is None or box["height"] < 80 or box["width"] < 200:
+            shot(page, prefix + "-debug")
+            raise AssertionError("chart %s has no drawn size: %s" % (i, box))
+    markup = page.locator("svg.chart").first.inner_html()
+    if "stroke=\"#3dd6c6\"" not in markup and "stroke='#3dd6c6'" not in markup:
+        shot(page, prefix + "-debug")
+        raise AssertionError("chart polyline missing inline stroke")
+    href = page.locator('link[rel="stylesheet"][href*="app.css"]').first.get_attribute("href") or ""
+    if "v=" not in href:
+        raise AssertionError("app.css is not cache-busted: " + href)
+
+
 def main() -> int:
     try:
         from playwright.sync_api import sync_playwright
@@ -180,13 +200,13 @@ def main() -> int:
                 if rbody.lower().count("cohorts at close") != 1:
                     shot(page, "reports-debug")
                     raise AssertionError("expected one cohort drill-down, got " + str(rbody.lower().count("cohorts at close")))
-                svg_n = page.locator("svg.chart").count()
-                if svg_n < 3:
-                    shot(page, "reports-debug")
-                    raise AssertionError("reports missing SVG charts: " + str(svg_n))
+                assert_charts_drawn(page, "reports")
+                page.get_by_role("heading", name="Settled vs still-pending").scroll_into_view_if_needed()
                 shot(page, "reports-desktop")
                 page.set_viewport_size(MOBILE)
                 page.goto(base + "/reports.php", wait_until="domcontentloaded", timeout=90000)
+                assert_charts_drawn(page, "reports-mobile")
+                page.get_by_role("heading", name="Settled vs still-pending").scroll_into_view_if_needed()
                 shot(page, "reports-mobile")
                 page.set_viewport_size({"width": 1280, "height": 1400})
                 page.goto(base + "/reports.php?epoch=8", wait_until="domcontentloaded", timeout=90000)
@@ -221,12 +241,31 @@ def main() -> int:
                 if "mcp/server.py" not in dbody.lower() and "standard mcp" not in dbody.lower():
                     shot(page, "docs-debug")
                     raise AssertionError("docs missing stdio MCP server")
-                if "0.5.0" not in dbody:
+                if "0.5.1" not in dbody:
                     raise AssertionError("docs missing API version")
                 shot(page, "docs-desktop")
                 page.set_viewport_size(MOBILE)
                 page.goto(base + "/docs.php", wait_until="domcontentloaded", timeout=45000)
                 shot(page, "docs-mobile")
+            finally:
+                browser.close()
+    if "--live" in sys.argv:
+        live = "https://poa.explorer.zero1.network"
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            try:
+                page = browser.new_page(viewport={"width": 1280, "height": 1400})
+                page.route("**/*fonts.googleapis.com/**", lambda route: route.abort())
+                page.route("**/*fonts.gstatic.com/**", lambda route: route.abort())
+                page.goto(live + "/reports.php", wait_until="domcontentloaded", timeout=90000)
+                assert_charts_drawn(page, "live-reports")
+                page.get_by_role("heading", name="Settled vs still-pending").scroll_into_view_if_needed()
+                shot(page, "live-reports-desktop")
+                page.set_viewport_size(MOBILE)
+                page.goto(live + "/reports.php", wait_until="domcontentloaded", timeout=90000)
+                assert_charts_drawn(page, "live-reports-mobile")
+                page.get_by_role("heading", name="Settled vs still-pending").scroll_into_view_if_needed()
+                shot(page, "live-reports-mobile")
             finally:
                 browser.close()
     print("ok")
