@@ -17,7 +17,7 @@ Read-only public chain data. No wallet, no keys, no sending POA. The explorer ne
 Every JSON route returns:
 
 ```json
-{"ok": true, "error": null, "cache": "fresh", "version": "0.4.1", "body": {}}
+{"ok": true, "error": null, "cache": "fresh", "version": "0.4.2", "body": {}}
 ```
 
 `version` is the explorer API version (changelog: `/api/changelog.php`). Changes are additive. `cache` is `fresh`, `hit`, `stale`, or `miss`. Origin failure may still return last-good `body` with `cache: "stale"`. GET CORS is `*`.

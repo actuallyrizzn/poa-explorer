@@ -299,7 +299,7 @@ function poa_address(string $addr): array
     }
     $row = poa_json_get('/api/explorer/address/' . $addr);
     if (is_array($row['body']) && !isset($row['body']['error'])) {
-        poa_ensure_derived();
+        poa_derived_row();
         $close = poa_derived_last_close();
         $row['body']['grading'] = poa_grading_for_address(
             $addr,
@@ -368,6 +368,13 @@ function poa_finality_label(array $row): string
 function poa_changelog(): array
 {
     return [
+        [
+            'version' => '0.4.2',
+            'date' => '2026-10-27',
+            'changes' => [
+                'Derived epochs snapshot (last close, settled index, reports body) is built by CLI cron, not on visit. Address, pending, and Reports only read that snapshot. Missing or stale is labeled.',
+            ],
+        ],
         [
             'version' => '0.4.1',
             'date' => '2026-10-27',
@@ -685,7 +692,7 @@ function poa_filter_pending_snapshot(array $snap, string $addr, bool $withoutOnl
 
 function poa_pending_row(string $addr = '', bool $withoutOnly = false, int $limit = POA_EXPLORER_PENDING_PAGE_LIMIT): array
 {
-    $derived = poa_ensure_derived();
+    $derived = poa_derived_row();
     $ch = poa_challenges();
     $close = poa_derived_last_close();
     $snap = poa_pending_snapshot($close, is_array($ch['body']) ? $ch['body'] : null);
@@ -961,15 +968,36 @@ function poa_derived_file(string $name): string
     return poa_cache_dir() . '/derived-' . $name . '.json';
 }
 
-function poa_derived_fresh(): bool
+function poa_derived_present(): bool
 {
     foreach (['reports', 'last-close', 'settled-index'] as $name) {
-        $f = poa_derived_file($name);
-        if (!is_file($f) || (time() - filemtime($f)) >= POA_EXPLORER_SLOW_CACHE_TTL) {
+        if (!is_file(poa_derived_file($name))) {
             return false;
         }
     }
     return true;
+}
+
+function poa_derived_mtime(): ?int
+{
+    $f = poa_derived_file('reports');
+    if (!is_file($f)) {
+        return null;
+    }
+    $t = filemtime($f);
+    return $t === false ? null : $t;
+}
+
+function poa_derived_fresh(): bool
+{
+    if (!poa_derived_present()) {
+        return false;
+    }
+    $t = poa_derived_mtime();
+    if ($t === null) {
+        return false;
+    }
+    return (time() - $t) < POA_EXPLORER_DERIVED_STALE_AFTER;
 }
 
 function poa_read_derived_json(string $name): mixed
@@ -1048,16 +1076,25 @@ function poa_prune_origin_cache(int $maxAge = 7200, int $maxDelete = 1500): void
     }
 }
 
-function poa_ensure_derived(): array
+function poa_derived_row(): array
+{
+    if (!poa_derived_present()) {
+        return [
+            '_error' => 'Epoch snapshot is not on disk yet. A five-minute cron builds it; this page does not fetch /api/epochs on visit.',
+            '_cache' => 'miss',
+            '_status' => 0,
+        ];
+    }
+    return [
+        '_error' => null,
+        '_cache' => poa_derived_fresh() ? 'hit' : 'stale',
+        '_status' => 200,
+    ];
+}
+
+function poa_refresh_derived(): array
 {
     return poa_with_file_lock(poa_cache_dir() . '/lock-derived', static function (): array {
-        if (poa_derived_fresh()) {
-            return [
-                '_error' => null,
-                '_cache' => 'hit',
-                '_status' => 200,
-            ];
-        }
         poa_bump_memory();
         $epochs = poa_epochs();
         $status = poa_status();

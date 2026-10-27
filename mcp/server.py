@@ -27,7 +27,7 @@ from poa_explorer import PoaExplorerClient, PoaExplorerError  # noqa: E402
 
 PROTOCOL = "2024-11-05"
 SERVER_NAME = "poa-explorer"
-SERVER_VERSION = "0.4.1"
+SERVER_VERSION = "0.4.2"
 BASE = os.environ.get("POA_EXPLORER_BASE_URL", "https://poa.explorer.zero1.network").rstrip("/")
 
 TOOLS = [

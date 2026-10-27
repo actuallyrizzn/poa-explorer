@@ -25,7 +25,7 @@ PLUGIN_SPEC = {
     "contract_version": "1.0",
     "plugin": {
         "name": "poa_explorer",
-        "version": "0.4.1",
+        "version": "0.4.2",
         "description": (
             "Read-only Proof of Agent explorer (https://poa.explorer.zero1.network). "
             "No API key. No wallet."

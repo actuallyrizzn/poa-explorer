@@ -55,7 +55,15 @@ Python SDK: `sdk/python` (`PoaExplorerClient`). PHP SDK: `sdk/php/PoaExplorerCli
 
 **Standard MCP stdio:** [docs/MCP.md](docs/MCP.md) — `python3 mcp/server.py`.
 
-Never `/api/hosted/*`. Cache lives outside the web root (45s TTL, last-good on origin failure).
+Never `/api/hosted/*`. Origin JSON cache lives outside the web root (45s TTL, last-good on origin failure).
+
+The 18MB `/api/epochs` snapshot used by pending, address grading, and Reports is **not** built on visit. A CLI cron writes a slim derived cache; pages only read it:
+
+```bash
+*/5 * * * * /usr/bin/flock -n /tmp/poa-explorer-derived.lock /usr/bin/php /var/www/poa.explorer.zero1.network/html/cron/refresh-derived.php >> /var/log/poa-explorer-derived.log 2>&1
+```
+
+HTTP to that script returns 403. Missing or stale snapshot is labeled, not filled in.
 
 ## Pages
 

@@ -380,7 +380,7 @@ function poa_reports_from_public(array $epochsBody, array $status, array $txs, a
 
 function poa_reports_row(): array
 {
-    $derived = poa_ensure_derived();
+    $derived = poa_derived_row();
     $body = poa_derived_reports_body();
     return [
         '_error' => $derived['_error'] ?? null,

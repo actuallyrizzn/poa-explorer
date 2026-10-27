@@ -73,6 +73,10 @@ final class PoaLiveTest extends TestCase
 
     public function testReportsEpoch8CopperwickCase(): void
     {
+        $built = poa_refresh_derived();
+        if (!empty($built['_error'])) {
+            $this->markTestSkipped('could not refresh derived snapshot: ' . (string) $built['_error']);
+        }
         $row = poa_reports_row();
         $this->assertIsArray($row['body']);
         $closes = $row['body']['settlement']['rows'] ?? [];

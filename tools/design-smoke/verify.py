@@ -60,6 +60,7 @@ def php_server():
     php = shutil.which("php")
     if not php:
         raise RuntimeError("php not on PATH")
+    subprocess.check_call([php, str(PUBLIC / "cron" / "refresh-derived.php")], cwd=str(REPO))
     port = free_port()
     proc = subprocess.Popen(
         [php, "-S", f"127.0.0.1:{port}", "-t", str(PUBLIC)],
@@ -202,7 +203,7 @@ def main() -> int:
                 if "mcp/server.py" not in dbody.lower() and "standard mcp" not in dbody.lower():
                     shot(page, "docs-debug")
                     raise AssertionError("docs missing stdio MCP server")
-                if "0.4.1" not in dbody:
+                if "0.4.2" not in dbody:
                     raise AssertionError("docs missing API version")
                 shot(page, "docs-desktop")
                 page.set_viewport_size(MOBILE)

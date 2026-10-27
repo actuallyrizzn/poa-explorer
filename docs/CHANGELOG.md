@@ -2,6 +2,10 @@
 
 Every JSON envelope includes `version`. Changes are additive.
 
+## 0.4.2 — 2026-10-27
+
+- Derived epochs snapshot (last close, settled index, reports body) is built by CLI cron (`public/cron/refresh-derived.php`), not on a web visit. Address, pending, and Reports only read that snapshot. Missing or stale is labeled.
+
 ## 0.4.1 — 2026-10-27
 
 - Address, pending, and Reports no longer decode the full minepoa `/api/epochs` blob (~18MB) on every request. One worker builds a slim derived cache (last close, settled-by-answer index, reports body); other hits read that.
