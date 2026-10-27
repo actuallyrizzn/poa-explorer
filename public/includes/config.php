@@ -7,8 +7,9 @@ declare(strict_types=1);
  */
 
 const POA_EXPLORER_ORIGIN = 'https://minepoa.com';
-const POA_EXPLORER_API_VERSION = '0.4.0';
+const POA_EXPLORER_API_VERSION = '0.4.1';
 const POA_EXPLORER_SLOW_CACHE_TTL = 180;
+const POA_EXPLORER_EPOCHS_MEMORY = '384M';
 const POA_EXPLORER_PENDING_PAGE_LIMIT = 100;
 const POA_EXPLORER_EPOCH_EXPIRY = 16;
 
@@ -33,7 +34,7 @@ function poa_origin(): string
     }
     return POA_EXPLORER_ORIGIN;
 }
-const POA_EXPLORER_UA = 'PoA-Explorer/0.3 (read-only; https://poa.explorer.zero1.network)';
+const POA_EXPLORER_UA = 'PoA-Explorer/0.4.1 (read-only; https://poa.explorer.zero1.network)';
 const POA_EXPLORER_TIMEOUT = 20;
 const POA_EXPLORER_CACHE_TTL = 45;
 const POA_EXPLORER_RECENT_TX_LIMIT = 40;

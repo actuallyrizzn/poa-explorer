@@ -202,7 +202,7 @@ def main() -> int:
                 if "mcp/server.py" not in dbody.lower() and "standard mcp" not in dbody.lower():
                     shot(page, "docs-debug")
                     raise AssertionError("docs missing stdio MCP server")
-                if "0.4.0" not in dbody:
+                if "0.4.1" not in dbody:
                     raise AssertionError("docs missing API version")
                 shot(page, "docs-desktop")
                 page.set_viewport_size(MOBILE)

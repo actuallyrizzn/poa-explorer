@@ -2,6 +2,11 @@
 
 Every JSON envelope includes `version`. Changes are additive.
 
+## 0.4.1 — 2026-10-27
+
+- Address, pending, and Reports no longer decode the full minepoa `/api/epochs` blob (~18MB) on every request. One worker builds a slim derived cache (last close, settled-by-answer index, reports body); other hits read that.
+- Epochs fetch is file-locked and allowed 384M for that parse only, so crawlers cannot OOM the shared 128M PHP-FPM pool.
+
 ## 0.4.0 — 2026-10-27
 
 - Reports tab + `GET /api/reports.php`: settlement by birth cohort, grading backlog, network stats, close-key agreement, establishment/payouts. Public data only.

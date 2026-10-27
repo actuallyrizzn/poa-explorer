@@ -8,7 +8,7 @@ OpenAPI: https://poa.explorer.zero1.network/api/openapi.php
 Read-only Proof of Agent ledger explorer. Public JSON only. No wallet. No keys. No sending POA. Never /api/hosted/*.
 
 Envelope on every JSON route:
-{"ok": true|false, "error": null|string, "cache": "fresh"|"hit"|"stale"|"miss", "version": "0.4.0", "body": ...}
+{"ok": true|false, "error": null|string, "cache": "fresh"|"hit"|"stale"|"miss", "version": "0.4.1", "body": ...}
 Changes are additive. Changelog: GET /api/changelog.php
 
 GET /api/status.php — chain tip, checkpoint height, supply, holders

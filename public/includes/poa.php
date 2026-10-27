@@ -63,9 +63,68 @@ function poa_wrap(array $extra): array
     ];
 }
 
+function poa_bump_memory(string $limit = POA_EXPLORER_EPOCHS_MEMORY): void
+{
+    $cur = ini_get('memory_limit');
+    if ($cur === '-1') {
+        return;
+    }
+    $toBytes = static function (string $v): int {
+        $v = trim($v);
+        if ($v === '-1' || $v === '') {
+            return PHP_INT_MAX;
+        }
+        $n = (int) $v;
+        $u = strtoupper(substr($v, -1));
+        return match ($u) {
+            'G' => $n * 1024 * 1024 * 1024,
+            'M' => $n * 1024 * 1024,
+            'K' => $n * 1024,
+            default => (int) $v,
+        };
+    };
+    if ($toBytes($cur) < $toBytes($limit)) {
+        @ini_set('memory_limit', $limit);
+    }
+}
+
+function poa_with_file_lock(string $lockFile, callable $fn)
+{
+    $dir = dirname($lockFile);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0770, true);
+    }
+    $fh = fopen($lockFile, 'c');
+    if ($fh === false) {
+        return $fn();
+    }
+    flock($fh, LOCK_EX);
+    try {
+        return $fn();
+    } finally {
+        flock($fh, LOCK_UN);
+        fclose($fh);
+    }
+}
+
 function poa_json_get(string $path, ?int $ttl = null): array
 {
     $path = '/' . ltrim($path, '/');
+    if ($path === '/api/epochs') {
+        static $epochsLockHeld = false;
+        if (!$epochsLockHeld) {
+            $epochsLockHeld = true;
+            try {
+                return poa_with_file_lock(poa_cache_dir() . '/lock-epochs', static function () use ($path, $ttl) {
+                    poa_bump_memory();
+                    return poa_json_get($path, $ttl);
+                });
+            } finally {
+                $epochsLockHeld = false;
+            }
+        }
+        poa_bump_memory();
+    }
     if (str_starts_with($path, '/api/hosted')) {
         return poa_wrap([
             '_error' => 'hosted API is out of scope for this explorer',
@@ -131,6 +190,7 @@ function poa_json_get(string $path, ?int $ttl = null): array
     }
 
     $decoded = json_decode($raw, true);
+    $raw = null;
     if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
         return poa_wrap([
             '_error' => 'origin returned non-JSON',
@@ -239,15 +299,15 @@ function poa_address(string $addr): array
     }
     $row = poa_json_get('/api/explorer/address/' . $addr);
     if (is_array($row['body']) && !isset($row['body']['error'])) {
-        $epochsRow = poa_epochs();
-        $epochsBody = is_array($epochsRow['body']) ? $epochsRow['body'] : null;
-        $close = is_array($epochsBody) ? poa_latest_close($epochsBody) : null;
+        poa_ensure_derived();
+        $close = poa_derived_last_close();
         $row['body']['grading'] = poa_grading_for_address(
             $addr,
             $row['body'],
             $close,
             poa_challenges_body(),
-            $epochsBody
+            null,
+            poa_derived_settled_index()
         );
     }
     return $row;
@@ -308,6 +368,14 @@ function poa_finality_label(array $row): string
 function poa_changelog(): array
 {
     return [
+        [
+            'version' => '0.4.1',
+            'date' => '2026-10-27',
+            'changes' => [
+                'Address, pending, and Reports no longer decode the full 18MB /api/epochs blob on every hit. One worker builds a slim derived cache (last close, settled index, reports body); other pages read that.',
+                'Epochs fetch is file-locked and allowed 384M for that parse only, so a crawler storm cannot OOM the shared 128M PHP-FPM pool.',
+            ],
+        ],
         [
             'version' => '0.4.0',
             'date' => '2026-10-27',
@@ -617,9 +685,9 @@ function poa_filter_pending_snapshot(array $snap, string $addr, bool $withoutOnl
 
 function poa_pending_row(string $addr = '', bool $withoutOnly = false, int $limit = POA_EXPLORER_PENDING_PAGE_LIMIT): array
 {
-    $epochs = poa_epochs();
+    $derived = poa_ensure_derived();
     $ch = poa_challenges();
-    $close = is_array($epochs['body']) ? poa_latest_close($epochs['body']) : null;
+    $close = poa_derived_last_close();
     $snap = poa_pending_snapshot($close, is_array($ch['body']) ? $ch['body'] : null);
     $extraIds = [];
     if ($addr !== '' && poa_is_address($addr)) {
@@ -629,15 +697,15 @@ function poa_pending_row(string $addr = '', bool $withoutOnly = false, int $limi
         }
     }
     $body = poa_filter_pending_snapshot($snap, $addr, $withoutOnly, $limit, $extraIds);
-    $err = $epochs['_error'] ?? null;
+    $err = $derived['_error'] ?? null;
     if ($err === null && ($ch['_error'] ?? null)) {
         $err = $ch['_error'];
     }
     return [
         '_error' => $err,
-        '_cache' => $epochs['_cache'] ?? 'miss',
+        '_cache' => $derived['_cache'] ?? 'miss',
         '_path' => '/api/epochs',
-        '_status' => $epochs['_status'] ?? 0,
+        '_status' => $derived['_status'] ?? 0,
         'body' => $body,
     ];
 }
@@ -678,8 +746,57 @@ function poa_compact_pending_row(array $r): array
     ];
 }
 
-function poa_settled_by_answer_txid(?array $close, ?array $epochsBody, array $txIds): array
+function poa_settled_index_from_epochs(?array $epochsBody): array
 {
+    $idx = [];
+    if (!is_array($epochsBody)) {
+        return $idx;
+    }
+    foreach ($epochsBody as $c) {
+        if (!is_array($c)) {
+            continue;
+        }
+        $settled = $c['basis']['settled'] ?? [];
+        if (!is_array($settled)) {
+            continue;
+        }
+        foreach ($settled as $s) {
+            if (!is_array($s)) {
+                continue;
+            }
+            $aid = strtolower((string) ($s['answer'] ?? ''));
+            if ($aid === '') {
+                continue;
+            }
+            $idx[$aid][] = [
+                'answer_txid' => $aid,
+                'close_epoch' => $c['epoch'] ?? null,
+                'close_ts' => $c['ts'] ?? null,
+                'from' => $s['from'] ?? null,
+                'passed' => $s['passed'] ?? null,
+            ];
+        }
+    }
+    return $idx;
+}
+
+function poa_settled_by_answer_txid(?array $close, ?array $epochsBody, array $txIds, ?array $settledIndex = null): array
+{
+    if (is_array($settledIndex)) {
+        $hits = [];
+        foreach ($txIds as $aid => $_) {
+            $aid = strtolower((string) $aid);
+            if ($aid === '' || !isset($settledIndex[$aid]) || !is_array($settledIndex[$aid])) {
+                continue;
+            }
+            foreach ($settledIndex[$aid] as $hit) {
+                if (is_array($hit)) {
+                    $hits[] = $hit;
+                }
+            }
+        }
+        return $hits;
+    }
     $closes = [];
     if (is_array($epochsBody) && $epochsBody) {
         foreach ($epochsBody as $c) {
@@ -690,33 +807,10 @@ function poa_settled_by_answer_txid(?array $close, ?array $epochsBody, array $tx
     } elseif (is_array($close)) {
         $closes[] = $close;
     }
-    $hits = [];
-    foreach ($closes as $c) {
-        $settled = $c['basis']['settled'] ?? [];
-        if (!is_array($settled)) {
-            continue;
-        }
-        foreach ($settled as $s) {
-            if (!is_array($s)) {
-                continue;
-            }
-            $aid = strtolower((string) ($s['answer'] ?? ''));
-            if ($aid === '' || !isset($txIds[$aid])) {
-                continue;
-            }
-            $hits[] = [
-                'answer_txid' => $aid,
-                'close_epoch' => $c['epoch'] ?? null,
-                'close_ts' => $c['ts'] ?? null,
-                'from' => $s['from'] ?? null,
-                'passed' => $s['passed'] ?? null,
-            ];
-        }
-    }
-    return $hits;
+    return poa_settled_by_answer_txid($close, null, $txIds, poa_settled_index_from_epochs($closes));
 }
 
-function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?array $challenges, ?array $epochsBody = null): array
+function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?array $challenges, ?array $epochsBody = null, ?array $settledIndex = null): array
 {
     $snap = poa_pending_snapshot($close, $challenges);
     $challengeTxs = poa_challenge_txs_by_id($addrBody);
@@ -821,7 +915,7 @@ function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?
         }
     }
 
-    $settledByTxid = poa_settled_by_answer_txid($close, $epochsBody, $challengeTxs);
+    $settledByTxid = poa_settled_by_answer_txid($close, $epochsBody, $challengeTxs, $settledIndex);
     $settledJoinById = [];
     foreach ($settledByTxid as $hit) {
         $settledJoinById[(string) ($hit['answer_txid'] ?? '')] = $hit;
@@ -861,3 +955,133 @@ function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?
 }
 
 require_once __DIR__ . '/reports.php';
+
+function poa_derived_file(string $name): string
+{
+    return poa_cache_dir() . '/derived-' . $name . '.json';
+}
+
+function poa_derived_fresh(): bool
+{
+    foreach (['reports', 'last-close', 'settled-index'] as $name) {
+        $f = poa_derived_file($name);
+        if (!is_file($f) || (time() - filemtime($f)) >= POA_EXPLORER_SLOW_CACHE_TTL) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function poa_read_derived_json(string $name): mixed
+{
+    $f = poa_derived_file($name);
+    if (!is_file($f)) {
+        return null;
+    }
+    $decoded = json_decode((string) file_get_contents($f), true);
+    return $decoded;
+}
+
+function poa_derived_last_close(): ?array
+{
+    $row = poa_read_derived_json('last-close');
+    return is_array($row) ? $row : null;
+}
+
+function poa_derived_settled_index(): array
+{
+    $row = poa_read_derived_json('settled-index');
+    return is_array($row) ? $row : [];
+}
+
+function poa_derived_reports_body(): ?array
+{
+    $row = poa_read_derived_json('reports');
+    return is_array($row) ? $row : null;
+}
+
+function poa_write_derived_from_epochs(
+    array $epochsBody,
+    array $status,
+    array $txs,
+    array $anchors
+): void {
+    $dir = poa_cache_dir();
+    if (!is_dir($dir)) {
+        mkdir($dir, 0770, true);
+    }
+    $reports = poa_reports_from_public($epochsBody, $status, $txs, $anchors);
+    $last = poa_latest_close($epochsBody);
+    $settled = poa_settled_index_from_epochs($epochsBody);
+    @file_put_contents(poa_derived_file('reports'), json_encode($reports, JSON_UNESCAPED_SLASHES));
+    @file_put_contents(poa_derived_file('last-close'), json_encode($last, JSON_UNESCAPED_SLASHES));
+    @file_put_contents(poa_derived_file('settled-index'), json_encode($settled, JSON_UNESCAPED_SLASHES));
+}
+
+function poa_prune_origin_cache(int $maxAge = 7200, int $maxDelete = 1500): void
+{
+    $dir = poa_cache_dir();
+    if (!is_dir($dir)) {
+        return;
+    }
+    $n = 0;
+    $now = time();
+    foreach (scandir($dir) ?: [] as $base) {
+        if ($base === '.' || $base === '..') {
+            continue;
+        }
+        if (str_starts_with($base, 'derived-') || str_starts_with($base, 'lock-')) {
+            continue;
+        }
+        $f = $dir . '/' . $base;
+        if (!is_file($f)) {
+            continue;
+        }
+        if (($now - filemtime($f)) < $maxAge) {
+            continue;
+        }
+        @unlink($f);
+        $n++;
+        if ($n >= $maxDelete) {
+            break;
+        }
+    }
+}
+
+function poa_ensure_derived(): array
+{
+    return poa_with_file_lock(poa_cache_dir() . '/lock-derived', static function (): array {
+        if (poa_derived_fresh()) {
+            return [
+                '_error' => null,
+                '_cache' => 'hit',
+                '_status' => 200,
+            ];
+        }
+        poa_bump_memory();
+        $epochs = poa_epochs();
+        $status = poa_status();
+        $txs = poa_recent_txs_row();
+        $anchors = poa_anchors_row();
+        $epochsBody = is_array($epochs['body']) ? $epochs['body'] : [];
+        poa_write_derived_from_epochs(
+            $epochsBody,
+            is_array($status['body']) ? $status['body'] : [],
+            is_array($txs['body']) ? $txs['body'] : [],
+            is_array($anchors['body']) ? $anchors['body'] : []
+        );
+        unset($epochsBody);
+        poa_prune_origin_cache();
+        $err = $epochs['_error'] ?? null;
+        foreach ([$status, $txs, $anchors] as $row) {
+            if ($err === null && !empty($row['_error'])) {
+                $err = $row['_error'];
+            }
+        }
+        return [
+            '_error' => $err,
+            '_cache' => $epochs['_cache'] ?? 'fresh',
+            '_status' => $epochs['_status'] ?? 0,
+        ];
+    });
+}

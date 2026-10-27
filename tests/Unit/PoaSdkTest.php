@@ -49,7 +49,7 @@ final class PoaSdkTest extends TestCase
         $this->assertSame(9, $c->anchors()['body'][0]['height']);
         $this->assertSame(0, $c->epochs()['body'][0]['epoch']);
         $this->assertSame([], $c->challenges()['body']['answers']);
-        $this->assertSame('0.4.0', $c->changelog()['body']['current']);
+        $this->assertSame('0.4.1', $c->changelog()['body']['current']);
         $this->assertArrayHasKey('settlement', $c->reports()['body']);
         $this->assertSame(2, $c->close('2')['body']['epoch']);
         $this->assertSame(0, $c->pending()['body']['total']);

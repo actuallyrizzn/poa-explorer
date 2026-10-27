@@ -5,6 +5,16 @@ use PHPUnit\Framework\TestCase;
 
 final class PoaLiveTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        foreach (['reports', 'last-close', 'settled-index'] as $name) {
+            $f = poa_derived_file($name);
+            if (is_file($f)) {
+                @unlink($f);
+            }
+        }
+    }
+
     public function testStatus(): void
     {
         $row = poa_status();

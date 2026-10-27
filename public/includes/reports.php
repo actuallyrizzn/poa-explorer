@@ -380,28 +380,13 @@ function poa_reports_from_public(array $epochsBody, array $status, array $txs, a
 
 function poa_reports_row(): array
 {
-    $epochs = poa_epochs();
-    $status = poa_status();
-    $txs = poa_recent_txs_row();
-    $anchors = poa_anchors_row();
-    $epochsBody = is_array($epochs['body']) ? $epochs['body'] : [];
-    $body = poa_reports_from_public(
-        $epochsBody,
-        is_array($status['body']) ? $status['body'] : [],
-        is_array($txs['body']) ? $txs['body'] : [],
-        is_array($anchors['body']) ? $anchors['body'] : []
-    );
-    $err = $epochs['_error'] ?? null;
-    foreach ([$status, $txs, $anchors] as $row) {
-        if ($err === null && !empty($row['_error'])) {
-            $err = $row['_error'];
-        }
-    }
+    $derived = poa_ensure_derived();
+    $body = poa_derived_reports_body();
     return [
-        '_error' => $err,
-        '_cache' => $epochs['_cache'] ?? 'miss',
+        '_error' => $derived['_error'] ?? null,
+        '_cache' => $derived['_cache'] ?? 'miss',
         '_path' => '/api/epochs',
-        '_status' => $epochs['_status'] ?? 0,
-        'body' => $body,
+        '_status' => $derived['_status'] ?? 0,
+        'body' => is_array($body) ? $body : [],
     ];
 }

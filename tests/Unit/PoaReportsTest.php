@@ -5,6 +5,16 @@ use PHPUnit\Framework\TestCase;
 
 final class PoaReportsTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        foreach (['reports', 'last-close', 'settled-index'] as $name) {
+            $f = poa_derived_file($name);
+            if (is_file($f)) {
+                @unlink($f);
+            }
+        }
+    }
+
     private function closes(): array
     {
         $e7 = [
@@ -104,7 +114,7 @@ final class PoaReportsTest extends TestCase
         $this->assertSame(1, $rep['network']['recent_tx_types']['challenge']);
         $this->assertSame(0, $rep['close_agreement']['closes_with_missing_keys']);
         $this->assertSame(8, $rep['grading_backlog']['as_of_epoch']);
-        $this->assertSame('0.4.0', poa_changelog()[0]['version']);
+        $this->assertSame('0.4.1', poa_changelog()[0]['version']);
     }
 
     public function testEmptyReports(): void
@@ -112,5 +122,33 @@ final class PoaReportsTest extends TestCase
         $rep = poa_reports_from_public([], [], [], []);
         $this->assertSame([], $rep['settlement']['rows']);
         $this->assertNull($rep['grading_backlog']);
+    }
+
+    public function testDerivedCacheRoundTrip(): void
+    {
+        poa_write_derived_from_epochs($this->closes(), [
+            'checkpoint' => ['height' => 9],
+            'epochs_closed' => 2,
+            'txs' => 4,
+        ], [], []);
+        $last = poa_derived_last_close();
+        $this->assertSame(8, $last['epoch'] ?? null);
+        $idx = poa_derived_settled_index();
+        $this->assertArrayHasKey('bb', $idx);
+        $body = poa_derived_reports_body();
+        $this->assertSame(2, $body['settlement']['rows'][1]['settled'] ?? null);
+        $this->assertTrue(poa_derived_fresh());
+        $hit = poa_ensure_derived();
+        $this->assertSame('hit', $hit['_cache']);
+        poa_bump_memory('128M');
+        $locked = poa_with_file_lock(poa_cache_dir() . '/lock-test', static fn () => 7);
+        $this->assertSame(7, $locked);
+        $old = poa_cache_dir() . '/old-cache.json';
+        file_put_contents($old, '{}');
+        touch($old, time() - 8000);
+        poa_prune_origin_cache(7200, 50);
+        $this->assertFileDoesNotExist($old);
+        $hits = poa_settled_by_answer_txid(null, null, ['bb' => true], poa_derived_settled_index());
+        $this->assertSame('bb', $hits[0]['answer_txid'] ?? null);
     }
 }
