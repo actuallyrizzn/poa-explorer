@@ -71,6 +71,16 @@ final class PoaExplorerClient
         return $this->get('/api/reports.php');
     }
 
+    public function health(): array
+    {
+        return $this->get('/api/health.php');
+    }
+
+    public function market(): array
+    {
+        return $this->get('/api/market.php');
+    }
+
     /**
      * @param array<string,string> $query
      * @return array<string,mixed>

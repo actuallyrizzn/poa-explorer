@@ -22,13 +22,18 @@ final class PoaFixtureOriginTest extends TestCase
             dirname($router)
         );
         usleep(250000);
-        putenv('POA_ORIGIN=http://127.0.0.1:' . self::$port);
+        $base = 'http://127.0.0.1:' . self::$port;
+        putenv('POA_ORIGIN=' . $base);
+        putenv('POA_SWAP_BOOK_URL=' . $base . '/api/book');
+        putenv('POA_COINGECKO_SIMPLE_URL=' . $base . '/api/v3/simple/price');
         putenv('POA_CACHE_DIR=' . sys_get_temp_dir() . '/poa-explorer-cache-fixture');
     }
 
     public static function tearDownAfterClass(): void
     {
         putenv('POA_ORIGIN');
+        putenv('POA_SWAP_BOOK_URL');
+        putenv('POA_COINGECKO_SIMPLE_URL');
         putenv('POA_CACHE_DIR=' . sys_get_temp_dir() . '/poa-explorer-cache-test');
         if (is_resource(self::$proc)) {
             proc_terminate(self::$proc);
@@ -104,5 +109,33 @@ final class PoaFixtureOriginTest extends TestCase
         $dir = poa_cache_dir();
         putenv('POA_CACHE_DIR=' . $old);
         $this->assertStringEndsWith('/poa-explorer-cache', $dir);
+    }
+
+    public function testHealthAndMarketFromFixture(): void
+    {
+        $health = poa_health_run();
+        $this->assertNull($health['_error']);
+        $this->assertContains($health['body']['overall'], ['OK', 'Partial']);
+        $ids = [];
+        foreach ($health['body']['feeds'] as $f) {
+            $ids[$f['id']] = $f['status'];
+        }
+        $this->assertSame('ok', $ids['status']);
+        $this->assertSame('ok', $ids['tx_lookup']);
+        $this->assertSame('ok', $ids['swap_reads']);
+        $this->assertSame('ok', $ids['swap_writes']);
+        $hit = poa_health_row();
+        $this->assertSame('hit', $hit['_cache']);
+        $banner = poa_health_banner_html();
+        $this->assertStringContainsString('health-banner', $banner);
+
+        $market = poa_market_refresh();
+        $this->assertTrue($market['body']['otc']);
+        $this->assertSame('open', $market['body']['market_state']);
+        $this->assertSame('SOL|solana', $market['body']['primary']);
+        $this->assertStringContainsString('never a live market price', $market['body']['disclaimer']);
+        $row = poa_market_row();
+        $this->assertSame('hit', $row['_cache']);
+        $this->assertNotNull(poa_market_primary($row['body']));
     }
 }

@@ -55,6 +55,33 @@ if ($path === '/api/epochs') {
     ]], JSON_UNESCAPED_SLASHES);
     exit;
 }
+if ($path === '/api/swaps') {
+    echo json_encode([['id' => 's1', 'pair' => 'SOL|solana']], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+if ($path === '/api/book') {
+    echo json_encode([
+        'state' => 'available',
+        'swaps_live' => true,
+        'writes' => null,
+        'pairs' => [[
+            'key' => 'SOL|solana',
+            'asset' => 'SOL',
+            'chain' => 'solana',
+            'chain_name' => 'Solana',
+            'best_ask' => 0.15,
+            'last' => 0.4,
+            'last_ts' => 1792791356,
+            'asks' => [['px' => 0.15, 'poa' => 1000, 'want' => 0.00015]],
+        ]],
+        'usd' => ['src' => 'CoinGecko', 'rates' => ['SOL' => 100, 'ETH' => 2000]],
+    ], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+if ($path === '/api/v3/simple/price') {
+    echo json_encode(['solana' => ['usd' => 101.91], 'ethereum' => ['usd' => 2350]], JSON_UNESCAPED_SLASHES);
+    exit;
+}
 if ($path === '/api/challenge-index') {
     echo json_encode([
         'chain_id' => 'poa-fixture',

@@ -38,6 +38,8 @@ function poa_layout_start(string $title, string $nav = 'home'): void
       <a href="checkpoint.php"<?php echo $nav === 'checkpoint' ? ' aria-current="page"' : ''; ?>>Checkpoints</a>
       <a href="pending.php"<?php echo $nav === 'pending' ? ' aria-current="page"' : ''; ?>>Pending</a>
       <a href="reports.php"<?php echo $nav === 'reports' ? ' aria-current="page"' : ''; ?>>Reports</a>
+      <a href="market.php"<?php echo $nav === 'market' ? ' aria-current="page"' : ''; ?>>OTC</a>
+      <a href="health.php"<?php echo $nav === 'health' ? ' aria-current="page"' : ''; ?>>Health</a>
       <a href="docs.php"<?php echo $nav === 'docs' ? ' aria-current="page"' : ''; ?>>Docs</a>
     </nav>
   </header>
@@ -45,6 +47,7 @@ function poa_layout_start(string $title, string $nav = 'home'): void
     <strong>Read-only — no wallet, no value promised.</strong>
     Public Proof of Agent ledger. Experimental accounting. Nothing here is for sale.
   </div>
+  <?php echo poa_health_banner_html(); ?>
   <form class="search" action="search.php" method="get" role="search">
     <label for="q">Search</label>
     <input id="q" name="q" type="search" placeholder="Address, tx id, or height" value="<?php echo poa_h((string) ($_GET['q'] ?? '')); ?>" autocomplete="off">

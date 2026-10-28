@@ -92,6 +92,22 @@ header nav a[aria-current="page"] {
 }
 .lab-banner strong { color: var(--accent); }
 
+.health-banner {
+  margin: 0.5rem 1.75rem 0;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+.health-banner.health-ok { border-color: var(--accent); }
+.health-banner.health-partial { border-color: var(--warn); }
+.health-banner.health-down { border-color: var(--danger); }
+.health-banner.health-ok strong { color: var(--accent); }
+.health-banner.health-partial strong { color: var(--warn); }
+.health-banner.health-down strong { color: var(--danger); }
+
 .search {
   display: flex;
   gap: 0.5rem;
@@ -178,7 +194,7 @@ h1 {
 .stat .v {
   font-size: 1.15rem;
   margin-top: 0.35rem;
-  word-break: break-all;
+  overflow-wrap: anywhere;
   color: var(--accent);
 }
 
@@ -202,7 +218,7 @@ h1 {
 
 .kv {
   display: grid;
-  grid-template-columns: 140px 1fr;
+  grid-template-columns: minmax(10rem, 13rem) 1fr;
   gap: 0.4rem 0.75rem;
   font-size: 0.85rem;
 }

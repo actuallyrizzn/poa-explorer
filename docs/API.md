@@ -17,7 +17,7 @@ Read-only public chain data. No wallet, no keys, no sending POA. The explorer ne
 Every JSON route returns:
 
 ```json
-{"ok": true, "error": null, "cache": "fresh", "version": "0.5.1", "body": {}}
+{"ok": true, "error": null, "cache": "fresh", "version": "0.6.0", "body": {}}
 ```
 
 `version` is the explorer API version (changelog: `/api/changelog.php`). Changes are additive. `cache` is `fresh`, `hit`, `stale`, or `miss`. Origin failure may still return last-good `body` with `cache: "stale"`. GET CORS is `*`.
@@ -35,6 +35,8 @@ Every JSON route returns:
 | GET | `/api/close.php?epoch={n}` | One close object from that list, same keys |
 | GET | `/api/pending.php` | Last-close `basis.pending` snapshot (panel size, `since`, `grades` as `{score, ts, grader}` when present, `answer_txid`). Optional `a=`, `without_panel=1`, `limit=` |
 | GET | `/api/reports.php` | Network reports (settlement cohorts, backlog, stats, close-key agreement, payouts). Public data only. Full cron body; the Reports HTML page windows the last 30 closes and drills one close at a time |
+| GET | `/api/health.php` | Read-only probes of origin feeds this explorer uses. Overall OK/Partial/Down, per-feed status, down-since. Swap-write state is public book fields only (no order POST) |
+| GET | `/api/market.php` | OTC book from poaswap.io: per-pair last trade and best offer, implied USD from a cached CoinGecko rate, history series. Not a live market price |
 | GET | `/api/changelog.php` | API changelog |
 | GET | `/api/challenges.php` | Challenge index. Large. Prefer other routes unless you need it |
 | GET | `/api/openapi.php` | OpenAPI 3 stub |

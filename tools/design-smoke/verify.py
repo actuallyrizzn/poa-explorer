@@ -125,6 +125,12 @@ def main() -> int:
                     raise AssertionError("home missing checkpoint height: " + repr(body[:800]))
                 if "wallet" in body.lower() and "no wallet" not in body.lower():
                     raise AssertionError("unexpected wallet copy")
+                if "health-banner" not in page.content():
+                    shot(page, "home-debug")
+                    raise AssertionError("home missing health banner")
+                if "otc book" not in body.lower():
+                    shot(page, "home-debug")
+                    raise AssertionError("home missing OTC teaser")
                 shot(page, "home-desktop")
 
                 page.set_viewport_size(MOBILE)
@@ -241,12 +247,46 @@ def main() -> int:
                 if "mcp/server.py" not in dbody.lower() and "standard mcp" not in dbody.lower():
                     shot(page, "docs-debug")
                     raise AssertionError("docs missing stdio MCP server")
-                if "0.5.1" not in dbody:
+                if "0.6.0" not in dbody:
                     raise AssertionError("docs missing API version")
                 shot(page, "docs-desktop")
                 page.set_viewport_size(MOBILE)
                 page.goto(base + "/docs.php", wait_until="domcontentloaded", timeout=45000)
                 shot(page, "docs-mobile")
+
+                page.set_viewport_size({"width": 1280, "height": 1400})
+                page.goto(base + "/health.php", wait_until="domcontentloaded", timeout=45000)
+                hbody = page.inner_text("body")
+                if "network health" not in hbody.lower():
+                    shot(page, "health-debug")
+                    raise AssertionError("health page missing heading")
+                if "health-banner" not in page.content():
+                    shot(page, "health-debug")
+                    raise AssertionError("health banner missing on health page")
+                if "swap writes" not in hbody.lower():
+                    shot(page, "health-debug")
+                    raise AssertionError("health page missing swap-writes panel")
+                shot(page, "health-desktop")
+                page.set_viewport_size(MOBILE)
+                page.goto(base + "/health.php", wait_until="domcontentloaded", timeout=45000)
+                shot(page, "health-mobile")
+
+                page.set_viewport_size({"width": 1280, "height": 1400})
+                page.goto(base + "/market.php", wait_until="domcontentloaded", timeout=45000)
+                mbody = page.inner_text("body")
+                if "otc book" not in mbody.lower():
+                    shot(page, "market-debug")
+                    raise AssertionError("market page missing OTC heading")
+                if "live market price" not in mbody.lower() and "not a live market" not in mbody.lower():
+                    shot(page, "market-debug")
+                    raise AssertionError("market page must label last trade / best offer, not a live price")
+                if "last trade" not in mbody.lower() or "best offer" not in mbody.lower():
+                    shot(page, "market-debug")
+                    raise AssertionError("market page missing last trade / best offer")
+                shot(page, "market-desktop")
+                page.set_viewport_size(MOBILE)
+                page.goto(base + "/market.php", wait_until="domcontentloaded", timeout=45000)
+                shot(page, "market-mobile")
             finally:
                 browser.close()
     if "--live" in sys.argv:
@@ -266,6 +306,27 @@ def main() -> int:
                 assert_charts_drawn(page, "live-reports-mobile")
                 page.get_by_role("heading", name="Settled vs still-pending").scroll_into_view_if_needed()
                 shot(page, "live-reports-mobile")
+                page.set_viewport_size(DESKTOP)
+                page.goto(live + "/", wait_until="domcontentloaded", timeout=90000)
+                if "health-banner" not in page.content():
+                    shot(page, "live-home-debug")
+                    raise AssertionError("live home missing health banner")
+                shot(page, "live-home-desktop")
+                page.set_viewport_size(MOBILE)
+                page.goto(live + "/", wait_until="domcontentloaded", timeout=90000)
+                shot(page, "live-home-mobile")
+                page.set_viewport_size(DESKTOP)
+                page.goto(live + "/health.php", wait_until="domcontentloaded", timeout=90000)
+                shot(page, "live-health-desktop")
+                page.set_viewport_size(MOBILE)
+                page.goto(live + "/health.php", wait_until="domcontentloaded", timeout=90000)
+                shot(page, "live-health-mobile")
+                page.set_viewport_size({"width": 1280, "height": 1400})
+                page.goto(live + "/market.php", wait_until="domcontentloaded", timeout=90000)
+                shot(page, "live-market-desktop")
+                page.set_viewport_size(MOBILE)
+                page.goto(live + "/market.php", wait_until="domcontentloaded", timeout=90000)
+                shot(page, "live-market-mobile")
             finally:
                 browser.close()
     print("ok")

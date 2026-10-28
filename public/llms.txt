@@ -8,7 +8,7 @@ OpenAPI: https://poa.explorer.zero1.network/api/openapi.php
 Read-only Proof of Agent ledger explorer. Public JSON only. No wallet. No keys. No sending POA. Never /api/hosted/*.
 
 Envelope on every JSON route:
-{"ok": true|false, "error": null|string, "cache": "fresh"|"hit"|"stale"|"miss", "version": "0.5.1", "body": ...}
+{"ok": true|false, "error": null|string, "cache": "fresh"|"hit"|"stale"|"miss", "version": "0.6.0", "body": ...}
 Changes are additive. Changelog: GET /api/changelog.php
 
 GET /api/status.php — chain tip, checkpoint height, supply, holders
@@ -20,6 +20,8 @@ GET /api/epochs.php — closed epochs; same field names/timestamps as minepoa /a
 GET /api/close.php?epoch={n} — one close object, same keys
 GET /api/pending.php — last-close pending snapshot (panel size, since, grades when present, answer_txid). Not a live draw.
 GET /api/reports.php — network reports (settlement cohorts, backlog, stats). Public data only. Full cron body. HTML /reports.php windows last 30 closes; ?epoch=N drills one close.
+GET /api/health.php — read-only feed probes (OK/Partial/Down, down-since). Swap-write state from public book fields only; no order POST.
+GET /api/market.php — OTC last trade and best offer per pair. Not a live market price. Thin posted-intent book.
 GET /api/challenges.php — challenge index; large payload
 
 Ledger facts:

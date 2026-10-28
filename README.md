@@ -45,6 +45,8 @@ Envelope `{ok, error, cache, version, body}` on:
 | `api/close.php?epoch=` | One close record |
 | `api/pending.php` | Last-close pending snapshot |
 | `api/reports.php` | Network reports (settlement cohorts, backlog, stats) |
+| `api/health.php` | Read-only feed probes (OK/Partial/Down) |
+| `api/market.php` | OTC last trade and best offer (not a live market price) |
 | `api/changelog.php` | API changelog |
 | `api/challenges.php` | Challenge index (large) |
 | `api/openapi.php` | OpenAPI stub |
@@ -75,6 +77,8 @@ HTTP to that script returns 403. Missing or stale snapshot is labeled, not fille
 | `checkpoint.php` | Checkpoints + Base/Solana anchors |
 | `pending.php` | Last-close pending list (panel size, age) |
 | `reports.php` | Network reports (settlement by birth cohort, backlog, stats) |
+| `market.php` | OTC book — last trade and best offer |
+| `health.php` | Network health probes |
 | `search.php?q=` | Routes address / tx id / height |
 | `docs.php` | Human + agent documentation |
 

@@ -2,6 +2,11 @@
 
 Every JSON envelope includes `version`. Changes are additive.
 
+## 0.6.0 — 2026-10-28
+
+- Health probes: homepage banner + `/health.php` + `GET /api/health.php`. Read-only checks of status, tx lookup, epochs snapshot, anchors, settlement freshness, seals, swap reads, and publicly readable swap-write state. Overall OK/Partial/Down with down-since times.
+- OTC book: `/market.php` + `GET /api/market.php`. poaswap.io posted intents (not an AMM). Per-pair best offer and last trade, POA/SOL primary, implied USD from a cached CoinGecko SOL/ETH rate. History stores best-offer and last-trade as separate series. Copy never treats this as a live market price.
+
 ## 0.5.1 — 2026-10-27
 
 - Reports SVG charts use inline `stroke` / `width` / `height` so they render even with a cached pre-0.5 stylesheet. Single-series aria labels fixed. `app.css?v=` follows the API version.

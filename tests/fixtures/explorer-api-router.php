@@ -7,7 +7,7 @@ parse_str((string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY), $que
 header('Content-Type: application/json; charset=UTF-8');
 
 $ok = static function ($body) {
-    echo json_encode(['ok' => true, 'error' => null, 'cache' => 'fresh', 'version' => '0.5.1', 'body' => $body], JSON_UNESCAPED_SLASHES);
+    echo json_encode(['ok' => true, 'error' => null, 'cache' => 'fresh', 'version' => '0.6.0', 'body' => $body], JSON_UNESCAPED_SLASHES);
 };
 
 if ($path === '/api/status.php') {
@@ -45,7 +45,7 @@ if ($path === '/api/challenges.php') {
     exit;
 }
 if ($path === '/api/changelog.php') {
-    $ok(['current' => '0.5.1', 'entries' => []]);
+    $ok(['current' => '0.6.0', 'entries' => []]);
     exit;
 }
 if ($path === '/api/close.php') {
@@ -58,6 +58,14 @@ if ($path === '/api/pending.php') {
 }
 if ($path === '/api/reports.php') {
     $ok(['settlement' => ['rows' => []], 'network' => []]);
+    exit;
+}
+if ($path === '/api/health.php') {
+    $ok(['overall' => 'OK', 'feeds' => [['id' => 'status', 'status' => 'ok']]]);
+    exit;
+}
+if ($path === '/api/market.php') {
+    $ok(['otc' => true, 'primary' => 'SOL|solana', 'pairs' => []]);
     exit;
 }
 http_response_code(404);

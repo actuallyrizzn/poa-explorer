@@ -19,13 +19,13 @@ from poa_explorer import PoaExplorerClient, PoaExplorerError  # noqa: E402
 
 BASE = os.environ.get("POA_EXPLORER_BASE_URL", "https://poa.explorer.zero1.network").rstrip("/")
 
-COMMANDS = ("status", "txs", "tx", "address", "anchors", "epochs", "close", "pending", "challenges", "changelog", "reports", "tool-help")
+COMMANDS = ("status", "txs", "tx", "address", "anchors", "epochs", "close", "pending", "challenges", "changelog", "reports", "health", "market", "tool-help")
 
 PLUGIN_SPEC = {
     "contract_version": "1.0",
     "plugin": {
         "name": "poa_explorer",
-        "version": "0.5.1",
+        "version": "0.6.0",
         "description": (
             "Read-only Proof of Agent explorer (https://poa.explorer.zero1.network). "
             "No API key. No wallet."
@@ -71,6 +71,8 @@ PLUGIN_SPEC = {
         },
         {"name": "changelog", "description": "Explorer API changelog", "parameters": []},
         {"name": "reports", "description": "Network reports (public data only)", "parameters": []},
+        {"name": "health", "description": "Read-only feed probes (OK/Partial/Down, down-since)", "parameters": []},
+        {"name": "market", "description": "OTC book: last trade and best offer per pair. Not a live market price.", "parameters": []},
     ],
 }
 
@@ -100,6 +102,8 @@ def main() -> int:
     sub.add_parser("challenges")
     sub.add_parser("changelog")
     sub.add_parser("reports")
+    sub.add_parser("health")
+    sub.add_parser("market")
     sub.add_parser("tool-help")
 
     args = p.parse_args()
@@ -149,6 +153,10 @@ def main() -> int:
             out = client.changelog()
         elif args.cmd == "reports":
             out = client.reports()
+        elif args.cmd == "health":
+            out = client.health()
+        elif args.cmd == "market":
+            out = client.market()
         else:
             print(json.dumps({"status": "error", "error": "unknown command"}))
             return 2

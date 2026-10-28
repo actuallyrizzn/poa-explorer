@@ -68,6 +68,8 @@ class ClientTest(unittest.TestCase):
             self.assertTrue(c.close(7)["ok"])
             self.assertTrue(c.pending({"a": "poa1x"})["ok"])
             self.assertTrue(c.reports()["ok"])
+            self.assertTrue(c.health()["ok"])
+            self.assertTrue(c.market()["ok"])
 
 
 if __name__ == "__main__":

@@ -57,6 +57,12 @@ class PoaExplorerClient:
     def reports(self) -> dict[str, Any]:
         return self.get("/api/reports.php")
 
+    def health(self) -> dict[str, Any]:
+        return self.get("/api/health.php")
+
+    def market(self) -> dict[str, Any]:
+        return self.get("/api/market.php")
+
     def get(self, path: str, query: dict[str, str] | None = None) -> dict[str, Any]:
         url = self.base_url + path
         if query:

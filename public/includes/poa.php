@@ -219,6 +219,76 @@ function poa_json_get(string $path, ?int $ttl = null): array
     return $out;
 }
 
+function poa_url_json(string $url, int $ttl): array
+{
+    $url = trim($url);
+    if ($url === '' || !poa_url_is_allowed($url)) {
+        return poa_wrap(['_error' => 'refused non-https url', '_path' => $url]);
+    }
+    $cacheDir = poa_cache_dir();
+    if (!is_dir($cacheDir)) {
+        mkdir($cacheDir, 0770, true);
+    }
+    $cacheFile = $cacheDir . '/url-' . hash('sha256', $url) . '.json';
+    if (is_file($cacheFile) && (time() - filemtime($cacheFile)) < $ttl) {
+        $cached = json_decode((string) file_get_contents($cacheFile), true);
+        if (is_array($cached) && array_key_exists('body', $cached)) {
+            $cached['_cache'] = 'hit';
+            return $cached;
+        }
+    }
+    $ctx = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'timeout' => POA_EXPLORER_TIMEOUT,
+            'header' => "User-Agent: " . POA_EXPLORER_UA . "\r\nAccept: application/json\r\n",
+            'ignore_errors' => true,
+        ],
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $ctx);
+    $status = 0;
+    if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $m)) {
+        $status = (int) $m[1];
+    }
+    if ($raw === false || $raw === '') {
+        if (is_file($cacheFile)) {
+            $cached = json_decode((string) file_get_contents($cacheFile), true);
+            if (is_array($cached) && array_key_exists('body', $cached)) {
+                $cached['_cache'] = 'stale';
+                $cached['_error'] = $cached['_error'] ?? 'origin unreachable; serving last-good cache';
+                $cached['_status'] = $status;
+                return $cached;
+            }
+        }
+        return poa_wrap(['_error' => 'origin unreachable', '_status' => $status, '_path' => $url]);
+    }
+    $decoded = json_decode($raw, true);
+    if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
+        return poa_wrap(['_error' => 'origin returned non-JSON', '_status' => $status, '_path' => $url]);
+    }
+    $err = null;
+    if ($status >= 400) {
+        $err = is_array($decoded) && isset($decoded['error'])
+            ? (string) $decoded['error']
+            : 'origin HTTP ' . $status;
+    }
+    $out = poa_wrap([
+        '_error' => $err,
+        '_cache' => 'fresh',
+        '_path' => $url,
+        '_status' => $status,
+        'body' => $decoded,
+    ]);
+    if ($err === null) {
+        @file_put_contents($cacheFile, json_encode($out, JSON_UNESCAPED_SLASHES));
+    }
+    return $out;
+}
+
 function poa_status(): array
 {
     $row = poa_json_get('/api/status');
@@ -368,6 +438,14 @@ function poa_finality_label(array $row): string
 function poa_changelog(): array
 {
     return [
+        [
+            'version' => '0.6.0',
+            'date' => '2026-10-28',
+            'changes' => [
+                'Health probes: homepage banner + /health.php + GET /api/health.php. Read-only checks of status, tx lookup, epochs snapshot, anchors, settlement freshness, seals, swap reads, and publicly readable swap-write state. Overall OK/Partial/Down with down-since times.',
+                'OTC book: /market.php + GET /api/market.php. poaswap.io posted intents (not an AMM). Per-pair best offer and last trade, POA/SOL primary, implied USD from a cached CoinGecko SOL/ETH rate. History stores best-offer and last-trade as separate series. Copy never treats this as a live market price.',
+            ],
+        ],
         [
             'version' => '0.5.1',
             'date' => '2026-10-27',
@@ -976,6 +1054,8 @@ function poa_grading_for_address(string $addr, array $addrBody, ?array $close, ?
 }
 
 require_once __DIR__ . '/reports.php';
+require_once __DIR__ . '/health.php';
+require_once __DIR__ . '/market.php';
 
 function poa_derived_file(string $name): string
 {

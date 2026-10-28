@@ -16,7 +16,7 @@ poa_layout_start('Docs', 'docs');
   <li>Public address JSON has one <code>balance</code> field. It does not split locked vs spendable. This site will not invent that split.</li>
   <li>Chain height is checkpoint height. Each transaction may also carry its own <code>height</code>. Open-epoch txs can sit above the checkpoint.</li>
 </ul>
-<p>Pages: <a href="index.php">Tip</a>, <a href="checkpoint.php">Checkpoints</a>, <a href="pending.php">Pending</a>, <a href="reports.php">Reports</a>, transaction (<code>tx.php?id=</code>), account (<code>address.php?a=</code>), search.</p>
+<p>Pages: <a href="index.php">Tip</a>, <a href="checkpoint.php">Checkpoints</a>, <a href="pending.php">Pending</a>, <a href="reports.php">Reports</a>, <a href="market.php">OTC book</a>, <a href="health.php">Health</a>, transaction (<code>tx.php?id=</code>), account (<code>address.php?a=</code>), search.</p>
 <?php poa_panel_end(); ?>
 
 <?php poa_panel_start('JSON API (for humans and agents)'); ?>
@@ -25,7 +25,7 @@ poa_layout_start('Docs', 'docs');
   "ok": true,
   "error": null,
   "cache": "fresh",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "body": {}
 }</pre>
 <p><code>version</code> is the explorer API version. Changes are additive. Changelog: <a href="api/changelog.php"><code>/api/changelog.php</code></a>. <code>cache</code> is <code>fresh</code>, <code>hit</code>, <code>stale</code>, or <code>miss</code>. On origin failure the explorer may serve last-good cache with <code>stale</code>. CORS is open for GET.</p>
@@ -42,6 +42,8 @@ poa_layout_start('Docs', 'docs');
 <tr><td>GET</td><td class="mono">/api/close.php?epoch={n}</td><td>One close object from that list, same keys</td></tr>
 <tr><td>GET</td><td class="mono">/api/pending.php</td><td>Last-close pending snapshot (panel size, age, seals when present). Optional <code>a=</code></td></tr>
 <tr><td>GET</td><td class="mono">/api/reports.php</td><td>Network reports (settlement by birth cohort, backlog, stats). Public data only. Full cron body. Reports HTML windows the last 30 closes and drills one close at a time. Snapshot from CLI cron, not built on visit</td></tr>
+<tr><td>GET</td><td class="mono">/api/health.php</td><td>Read-only probes of origin feeds this explorer uses. Overall OK/Partial/Down, per-feed status, down-since. Swap-write state is public book fields only (no order POST)</td></tr>
+<tr><td>GET</td><td class="mono">/api/market.php</td><td>OTC book from poaswap.io: per-pair last trade and best offer, implied USD from a cached CoinGecko rate, history series. Not a live market price</td></tr>
 <tr><td>GET</td><td class="mono">/api/changelog.php</td><td>API changelog</td></tr>
 <tr><td>GET</td><td class="mono">/api/challenges.php</td><td>Challenge index. Large (hundreds of KB). Prefer status/txs unless you need it</td></tr>
 <tr><td>GET</td><td class="mono">/api/openapi.php</td><td>OpenAPI 3 stub</td></tr>
@@ -85,7 +87,7 @@ cp -r poa-explorer/sdk/python/poa_explorer plugins/poa_explorer/poa_explorer
 python plugins/poa_explorer/cli.py --describe
 python plugins/poa_explorer/cli.py status
 python smcp.py</pre>
-<p>Restart SMCP after copying. Tools appear as <code>poa_explorer__status</code>, <code>poa_explorer__txs</code>, <code>poa_explorer__tx</code>, <code>poa_explorer__address</code>, <code>poa_explorer__anchors</code>, <code>poa_explorer__epochs</code>. <code>poa_explorer__challenges</code> exists but is large — prefer the others.</p>
+<p>Restart SMCP after copying. Tools appear as <code>poa_explorer__status</code>, <code>poa_explorer__txs</code>, <code>poa_explorer__tx</code>, <code>poa_explorer__address</code>, <code>poa_explorer__anchors</code>, <code>poa_explorer__epochs</code>, <code>poa_explorer__health</code>, <code>poa_explorer__market</code>. <code>poa_explorer__challenges</code> exists but is large — prefer the others.</p>
 <p>If your plugins directory is not <code>plugins/</code> next to <code>smcp.py</code>, set <code>MCP_PLUGINS_DIR</code> to that directory and copy into it the same way.</p>
 <p><strong>3. Optional — run the CLI without a running SMCP server</strong> (from a clone of this explorer):</p>
 <pre class="blob">python3 smcp_plugin/poa_explorer/cli.py status
@@ -97,7 +99,7 @@ python3 smcp_plugin/poa_explorer/cli.py tx --id 64hex</pre>
 <?php poa_panel_start('Standard MCP (stdio) — no SMCP required'); ?>
 <p>For MCP clients that speak JSON-RPC over stdio (Cursor, Claude Desktop, and similar), this repo also ships <code>mcp/server.py</code>. Stdlib only. Read-only. Same public JSON. Same facts in the repo: <span class="mono">docs/MCP.md</span>.</p>
 <pre class="blob">python3 mcp/server.py</pre>
-<p>Point the client at that command. Optional env: <code>POA_EXPLORER_BASE_URL</code>. Tools include <code>status</code>, <code>epochs</code>, <code>close</code>, <code>pending</code>, <code>address</code>, <code>changelog</code>.</p>
+<p>Point the client at that command. Optional env: <code>POA_EXPLORER_BASE_URL</code>. Tools include <code>status</code>, <code>epochs</code>, <code>close</code>, <code>pending</code>, <code>address</code>, <code>changelog</code>, <code>health</code>, <code>market</code>.</p>
 <?php poa_panel_end(); ?>
 
 <?php poa_panel_start('Licenses'); ?>

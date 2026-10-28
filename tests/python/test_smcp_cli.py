@@ -37,6 +37,9 @@ class SmcpCliTest(unittest.TestCase):
         names = [c["name"] for c in data["commands"]]
         self.assertIn("status", names)
         self.assertIn("address", names)
+        self.assertIn("health", names)
+        self.assertIn("market", names)
+        self.assertEqual("0.6.0", data["plugin"]["version"])
 
 
 if __name__ == "__main__":

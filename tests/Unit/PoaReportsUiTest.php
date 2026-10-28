@@ -86,6 +86,6 @@ final class PoaReportsUiTest extends TestCase
 
     public function testChangelogReportsUi(): void
     {
-        $this->assertSame('0.5.1', poa_changelog()[0]['version']);
+        $this->assertSame('0.6.0', poa_changelog()[0]['version']);
     }
 }

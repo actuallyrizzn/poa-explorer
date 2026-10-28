@@ -19,13 +19,13 @@ class McpServerTest(unittest.TestCase):
     def test_initialize(self) -> None:
         out = mod.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         self.assertEqual("poa-explorer", out["result"]["serverInfo"]["name"])
-        self.assertEqual("0.5.1", out["result"]["serverInfo"]["version"])
+        self.assertEqual("0.6.0", out["result"]["serverInfo"]["version"])
         self.assertIn("tools", out["result"]["capabilities"])
 
     def test_tools_list(self) -> None:
         out = mod.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
         names = [t["name"] for t in out["result"]["tools"]]
-        for need in ("status", "epochs", "close", "pending", "changelog", "address", "reports"):
+        for need in ("status", "epochs", "close", "pending", "changelog", "address", "reports", "health", "market"):
             self.assertIn(need, names)
 
     def test_notification_is_none(self) -> None:
