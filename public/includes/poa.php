@@ -443,8 +443,8 @@ function poa_changelog(): array
             'version' => '0.6.1',
             'date' => '2026-11-07',
             'changes' => [
-                'App rate limits on expensive paths (per IP): HTML tx/address/search 12/min, health 6/min, API tx/address 60/min. Over → 429 + Retry-After. Counter flock is short — never held across origin I/O.',
-                'robots.txt disallows tx/address/search/health/heavy API walks; allowlists tip/checkpoints/reports/market/docs and cheap JSON. Amazonbot/ClaudeBot/GPTBot/CCBot Disallow /.',
+                'App rate limits on expensive paths (per IP, uniform — bots/agents are intended users): HTML tx/address/search 12/min, health 6/min, API tx/address 60/min. Over → 429 + Retry-After. Counter flock is short — never held across origin I/O.',
+                'robots.txt Allows / for all user-agents (no path or UA Disallow). Protection is rate limits, not robots exclusion.',
                 'Homepage health banner is cache-only (no lock-health / origin poll from every HTML page).',
             ],
         ],

@@ -6,7 +6,7 @@ Same facts live on the site: https://poa.explorer.zero1.network/docs.php
 Agent brief: https://poa.explorer.zero1.network/llms.txt  
 OpenAPI stub: https://poa.explorer.zero1.network/api/openapi.php
 
-**Rate limits (0.6.1+):** per client IP. HTML `/tx.php` + `/address.php` + `/search.php` → 12/min. `/health.php` + `/api/health.php` → 6/min. `/api/tx.php` + `/api/address.php` → 60/min. Over → 429. See `/robots.txt`.
+**Rate limits (0.6.1+):** per client IP, applied uniformly (bots/agents welcome). HTML `/tx.php` + `/address.php` + `/search.php` → 12/min. `/health.php` + `/api/health.php` → 6/min. `/api/tx.php` + `/api/address.php` → 60/min. Over → 429. `/robots.txt` allows the whole site.
 
 This document is CC BY-SA 4.0. The explorer code is AGPLv3.
 

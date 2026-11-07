@@ -1,44 +1,7 @@
-# PoA Explorer — crawler policy (2026-11-07)
-# Full walks of every transaction/address page have no product value and
-# previously helped pin shared multihost PHP. Humans and agents look up a
-# specific id; programmatic bulk use belongs on the JSON API (rate-limited).
+# PoA Explorer — crawler policy (updated 2026-11-07)
+# This explorer is built for agents/bots as well as humans. Do not Disallow
+# crawlers by UA or by path. Expensive routes are rate-limited in the app
+# for everyone equally (see docs).
 
 User-agent: *
-Disallow: /tx.php
-Disallow: /address.php
-Disallow: /search.php
-Disallow: /health.php
-Disallow: /api/tx.php
-Disallow: /api/address.php
-Disallow: /api/health.php
-Disallow: /api/challenges.php
-Disallow: /api/epochs.php
 Allow: /
-Allow: /index.php
-Allow: /checkpoint.php
-Allow: /pending.php
-Allow: /reports.php
-Allow: /market.php
-Allow: /docs.php
-Allow: /llms.txt
-Allow: /api/status.php
-Allow: /api/txs.php
-Allow: /api/anchors.php
-Allow: /api/reports.php
-Allow: /api/market.php
-Allow: /api/changelog.php
-Allow: /api/openapi.php
-Allow: /api/pending.php
-Allow: /api/close.php
-
-User-agent: Amazonbot
-Disallow: /
-
-User-agent: ClaudeBot
-Disallow: /
-
-User-agent: GPTBot
-Disallow: /
-
-User-agent: CCBot
-Disallow: /

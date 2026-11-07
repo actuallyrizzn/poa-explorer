@@ -54,11 +54,11 @@ poa_layout_start('Docs', 'docs');
 <?php poa_panel_end(); ?>
 
 <?php poa_panel_start('Crawlers and rate limits'); ?>
-<p>Looking up a specific transaction or address at a human pace is fine. Full walks of every <code>/tx.php</code> / <code>/address.php</code> page are not — they have no product value and previously helped starve the shared host.</p>
+<p>Agents and bots are first-class users of this explorer. <a href="robots.txt"><code>/robots.txt</code></a> allows the whole site — we do not exclude crawlers by identity or path.</p>
 <ul>
-  <li><a href="robots.txt"><code>/robots.txt</code></a> disallows tx, address, search, health, and heavy API walks. Tip, checkpoints, reports, market, docs, and cheap JSON stay allowlisted. Amazonbot / ClaudeBot / GPTBot / CCBot are told <code>Disallow: /</code>.</li>
-  <li>App rate limits (per client IP, fixed window): HTML tx/address <strong>12/min</strong>; health HTML+API <strong>6/min</strong>; API tx/address <strong>60/min</strong>. Over → HTTP 429 + <code>Retry-After</code>.</li>
-  <li>Programmatic bulk use: prefer the JSON API within those caps, or run a local mirror. Do not scrape HTML tx pages.</li>
+  <li>Protection is <strong>uniform rate limits</strong> (per client IP, fixed window), not robots exclusion: HTML tx/address/search <strong>12/min</strong>; health HTML+API <strong>6/min</strong>; API tx/address <strong>60/min</strong>. Over → HTTP 429 + <code>Retry-After</code>.</li>
+  <li>Cheap surfaces (tip, checkpoints, reports, market, docs, status/txs JSON) stay easy at polite rates; expensive origin-touching paths are what get the tight caps — same rules for everyone.</li>
+  <li>Heavy bulk access: stay within those caps, or use a local mirror / future paid heavy tier. Looking up a specific tx or address at a normal pace will not hit the wall.</li>
 </ul>
 <?php poa_panel_end(); ?>
 

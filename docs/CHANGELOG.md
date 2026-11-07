@@ -4,8 +4,8 @@ Every JSON envelope includes `version`. Changes are additive.
 
 ## 0.6.1 — 2026-11-07
 
-- App-level rate limits on expensive paths (fixed window per client IP). HTML `/tx.php` + `/address.php` + `/search.php`: 12/min. `/health.php` + `/api/health.php`: 6/min. `/api/tx.php` + `/api/address.php`: 60/min. Over limit → HTTP 429 + `Retry-After`. Counters use a short flock only (never held across origin I/O).
-- `robots.txt`: Disallow tx/address/search/health/heavy API walks; Allow tip/checkpoints/reports/market/docs and cheap JSON. Known crawler UAs (Amazonbot, ClaudeBot, GPTBot, CCBot) Disallow `/`.
+- App-level rate limits on expensive paths (fixed window per client IP). HTML `/tx.php` + `/address.php` + `/search.php`: 12/min. `/health.php` + `/api/health.php`: 6/min. `/api/tx.php` + `/api/address.php`: 60/min. Over limit → HTTP 429 + `Retry-After`. Counters use a short flock only (never held across origin I/O). Same limits for everyone — agents/bots are intended users.
+- `robots.txt`: Allow `/` for all user-agents (no path or UA Disallow). Throttle is rate limits, not robots exclusion.
 - Homepage health banner is **cache-only** — no `lock-health` / origin poll from every HTML page.
 
 ## 0.6.0 — 2026-10-28
