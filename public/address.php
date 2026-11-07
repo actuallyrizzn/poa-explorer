@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/layout.php';
 
+poa_rate_limit_enforce('html-address', POA_RL_ADDRESS_HTML);
+
 $addr = trim((string) ($_GET['a'] ?? ''));
 $row = poa_address($addr);
 $body = is_array($row['body']) ? $row['body'] : [];

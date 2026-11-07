@@ -398,9 +398,11 @@ function poa_health_row(): array
 
 function poa_health_banner_html(?array $body = null): string
 {
+    // Cache-only on the request path — never take lock-health or poll origin
+    // from every HTML page (that starved shared php-fpm on multihost).
     if ($body === null) {
-        $row = poa_health_row();
-        $body = is_array($row['body'] ?? null) ? $row['body'] : null;
+        $cached = poa_read_derived_json('health');
+        $body = is_array($cached) ? $cached : null;
     }
     if (!is_array($body)) {
         return '';

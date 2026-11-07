@@ -25,7 +25,7 @@ poa_layout_start('Docs', 'docs');
   "ok": true,
   "error": null,
   "cache": "fresh",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "body": {}
 }</pre>
 <p><code>version</code> is the explorer API version. Changes are additive. Changelog: <a href="api/changelog.php"><code>/api/changelog.php</code></a>. <code>cache</code> is <code>fresh</code>, <code>hit</code>, <code>stale</code>, or <code>miss</code>. On origin failure the explorer may serve last-good cache with <code>stale</code>. CORS is open for GET.</p>
@@ -51,6 +51,15 @@ poa_layout_start('Docs', 'docs');
 </table>
 </div>
 <p>Machine brief: <a href="llms.txt">/llms.txt</a>. OpenAPI: <a href="api/openapi.php">/api/openapi.php</a>. Close records in <code>/api/epochs.php</code> and <code>/api/close.php</code> keep minepoa’s field names so two sources can be compared field by field. Pending panel size is a closed-epoch snapshot, not a live draw. Seals on pending rows are the public close <code>grades</code> field (score + timestamp; grader when present). Quorum is not on those rows. Address JSON may add a <code>grading</code> object without removing origin fields, including an answer-txid join from this account’s challenge txs to settled rows.</p>
+<?php poa_panel_end(); ?>
+
+<?php poa_panel_start('Crawlers and rate limits'); ?>
+<p>Looking up a specific transaction or address at a human pace is fine. Full walks of every <code>/tx.php</code> / <code>/address.php</code> page are not — they have no product value and previously helped starve the shared host.</p>
+<ul>
+  <li><a href="robots.txt"><code>/robots.txt</code></a> disallows tx, address, search, health, and heavy API walks. Tip, checkpoints, reports, market, docs, and cheap JSON stay allowlisted. Amazonbot / ClaudeBot / GPTBot / CCBot are told <code>Disallow: /</code>.</li>
+  <li>App rate limits (per client IP, fixed window): HTML tx/address <strong>12/min</strong>; health HTML+API <strong>6/min</strong>; API tx/address <strong>60/min</strong>. Over → HTTP 429 + <code>Retry-After</code>.</li>
+  <li>Programmatic bulk use: prefer the JSON API within those caps, or run a local mirror. Do not scrape HTML tx pages.</li>
+</ul>
 <?php poa_panel_end(); ?>
 
 <?php poa_panel_start('Python SDK'); ?>

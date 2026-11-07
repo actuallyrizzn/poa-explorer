@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/poa.php';
 
+poa_rate_limit_enforce('html-search', POA_RL_TX_HTML);
+
 $q = trim((string) ($_GET['q'] ?? ''));
 
 if ($q === '') {

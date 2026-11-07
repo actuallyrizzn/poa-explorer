@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/rate_limit.php';
 
 function poa_h(?string $s): string
 {
@@ -438,6 +439,15 @@ function poa_finality_label(array $row): string
 function poa_changelog(): array
 {
     return [
+        [
+            'version' => '0.6.1',
+            'date' => '2026-11-07',
+            'changes' => [
+                'App rate limits on expensive paths (per IP): HTML tx/address/search 12/min, health 6/min, API tx/address 60/min. Over → 429 + Retry-After. Counter flock is short — never held across origin I/O.',
+                'robots.txt disallows tx/address/search/health/heavy API walks; allowlists tip/checkpoints/reports/market/docs and cheap JSON. Amazonbot/ClaudeBot/GPTBot/CCBot Disallow /.',
+                'Homepage health banner is cache-only (no lock-health / origin poll from every HTML page).',
+            ],
+        ],
         [
             'version' => '0.6.0',
             'date' => '2026-10-28',

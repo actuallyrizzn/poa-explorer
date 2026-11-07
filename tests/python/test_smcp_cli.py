@@ -39,7 +39,7 @@ class SmcpCliTest(unittest.TestCase):
         self.assertIn("address", names)
         self.assertIn("health", names)
         self.assertIn("market", names)
-        self.assertEqual("0.6.0", data["plugin"]["version"])
+        self.assertEqual("0.6.1", data["plugin"]["version"])
 
 
 if __name__ == "__main__":

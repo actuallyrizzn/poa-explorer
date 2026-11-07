@@ -6,6 +6,8 @@ Same facts live on the site: https://poa.explorer.zero1.network/docs.php
 Agent brief: https://poa.explorer.zero1.network/llms.txt  
 OpenAPI stub: https://poa.explorer.zero1.network/api/openapi.php
 
+**Rate limits (0.6.1+):** per client IP. HTML `/tx.php` + `/address.php` + `/search.php` → 12/min. `/health.php` + `/api/health.php` → 6/min. `/api/tx.php` + `/api/address.php` → 60/min. Over → 429. See `/robots.txt`.
+
 This document is CC BY-SA 4.0. The explorer code is AGPLv3.
 
 ## Bounds
@@ -17,7 +19,7 @@ Read-only public chain data. No wallet, no keys, no sending POA. The explorer ne
 Every JSON route returns:
 
 ```json
-{"ok": true, "error": null, "cache": "fresh", "version": "0.6.0", "body": {}}
+{"ok": true, "error": null, "cache": "fresh", "version": "0.6.1", "body": {}}
 ```
 
 `version` is the explorer API version (changelog: `/api/changelog.php`). Changes are additive. `cache` is `fresh`, `hit`, `stale`, or `miss`. Origin failure may still return last-good `body` with `cache: "stale"`. GET CORS is `*`.

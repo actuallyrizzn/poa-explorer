@@ -7,7 +7,7 @@ declare(strict_types=1);
  */
 
 const POA_EXPLORER_ORIGIN = 'https://minepoa.com';
-const POA_EXPLORER_API_VERSION = '0.6.0';
+const POA_EXPLORER_API_VERSION = '0.6.1';
 const POA_EXPLORER_SLOW_CACHE_TTL = 180;
 const POA_EXPLORER_DERIVED_STALE_AFTER = 900;
 const POA_HEALTH_TTL = 45;
@@ -71,7 +71,7 @@ function poa_url_is_allowed(string $url): bool
     }
     return (bool) preg_match('#^http://(127\.0\.0\.1|\[::1\]|localhost)(:\d+)?/#i', $url);
 }
-const POA_EXPLORER_UA = 'PoA-Explorer/0.6.0 (read-only; https://poa.explorer.zero1.network)';
+const POA_EXPLORER_UA = 'PoA-Explorer/0.6.1 (read-only; https://poa.explorer.zero1.network)';
 const POA_EXPLORER_TIMEOUT = 20;
 const POA_EXPLORER_CACHE_TTL = 45;
 const POA_EXPLORER_RECENT_TX_LIMIT = 40;

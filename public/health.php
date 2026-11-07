@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/layout.php';
 
+poa_rate_limit_enforce('html-health', POA_RL_HEALTH);
+
 $row = poa_health_row();
 $body = is_array($row['body'] ?? null) ? $row['body'] : [];
 $err = $row['_error'] ?? null;

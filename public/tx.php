@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/layout.php';
 
+poa_rate_limit_enforce('html-tx', POA_RL_TX_HTML);
+
 $id = trim((string) ($_GET['id'] ?? ''));
 $row = poa_tx($id);
 $body = is_array($row['body']) ? $row['body'] : [];
