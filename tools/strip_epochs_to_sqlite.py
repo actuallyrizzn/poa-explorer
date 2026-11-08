@@ -270,7 +270,8 @@ def slim_grades(grades: Any) -> Any:
     return out
 
 
-def slim_pending_map(pending: Any) -> dict[str, Any]:
+def slim_pending_map(pending: Any, *, keep_panel: bool = False) -> dict[str, Any]:
+    """Keep since/kind for reports; panel seats only when keep_panel (last close)."""
     if not isinstance(pending, dict):
         return {}
     out: dict[str, Any] = {}
@@ -281,25 +282,24 @@ def slim_pending_map(pending: Any) -> dict[str, Any]:
         for k in ("kind", "since", "originalPassed"):
             if k in p:
                 row[k] = p[k]
-        if "panel" in p:
-            row["panel"] = slim_panel(p.get("panel"))
-        if "grades" in p:
-            row["grades"] = slim_grades(p.get("grades"))
+        panel = p.get("panel")
+        size = len(panel) if isinstance(panel, list) else 0
+        row["panel_size"] = size
+        if keep_panel:
+            row["panel"] = slim_panel(panel)
+        else:
+            row["panel"] = []
+        grades = slim_grades(p.get("grades")) if "grades" in p else None
+        if grades is not None:
+            row["grades"] = grades
+            row["grades_count"] = len(grades) if isinstance(grades, list) else None
         out[str(aid)] = row
     return out
 
 
 def slim_settled_list(settled: Any) -> list[dict[str, Any]]:
-    if not isinstance(settled, list):
-        return []
-    out: list[dict[str, Any]] = []
-    for s in settled:
-        if not isinstance(s, dict):
-            continue
-        row = {k: s[k] for k in ("answer", "from", "passed") if k in s}
-        if row.get("answer"):
-            out.append(row)
-    return out
+    """Settled rows live in the settled table; close JSON keeps an empty list."""
+    return []
 
 
 def slim_rewards(rewards: Any) -> Any:
@@ -328,9 +328,14 @@ def slim_close(close: dict[str, Any]) -> dict[str, Any]:
     basis: dict[str, Any] = {}
     if isinstance(basis_in, dict):
         if "pending" in basis_in:
-            basis["pending"] = slim_pending_map(basis_in.get("pending"))
+            # Panel seat lists are the bulk; keep size + grades only. Pending HTML
+            # joins authors from challenge-index; panel_size drives backlog charts.
+            basis["pending"] = slim_pending_map(basis_in.get("pending"), keep_panel=False)
+        # Settled payloads go only to the settled table (see write_sqlite_streaming).
         if "settled" in basis_in:
-            basis["settled"] = slim_settled_list(basis_in.get("settled"))
+            basis["settled"] = []
+            # Stash for the writer without embedding in close JSON:
+            # write_sqlite_streaming reads _settled_rows if present.
         # Counts-only for bulky side maps (reports only needs len()).
         for k in ("established_after", "attestations"):
             v = basis_in.get(k)
@@ -348,6 +353,17 @@ def slim_close(close: dict[str, Any]) -> dict[str, Any]:
         elif fp is not None:
             basis["final_payout"] = fp
     out["basis"] = basis
+    # Extract settled for the table; never embed the fat list in close JSON.
+    settled_src = basis_in.get("settled") if isinstance(basis_in, dict) else None
+    extracted: list[dict[str, Any]] = []
+    if isinstance(settled_src, list):
+        for s in settled_src:
+            if not isinstance(s, dict):
+                continue
+            row = {k: s[k] for k in ("answer", "from", "passed") if k in s}
+            if row.get("answer"):
+                extracted.append(row)
+    out["_settled_rows"] = extracted
     if "rewards" in close:
         out["rewards"] = slim_rewards(close.get("rewards"))
     else:
@@ -413,6 +429,9 @@ def write_sqlite_streaming(
                 or (isinstance(ts, str) and ts.isdigit())
                 else None
             )
+            settled = c.pop("_settled_rows", None)
+            if not isinstance(settled, list):
+                settled = []
             payload = json.dumps(c, separators=(",", ":"), ensure_ascii=False)
             conn.execute(
                 "INSERT OR REPLACE INTO closes(epoch, ts, json) VALUES (?,?,?)",
@@ -422,9 +441,6 @@ def write_sqlite_streaming(
                 jl.write(payload)
                 jl.write("\n")
             n_closes += 1
-            settled = (c.get("basis") or {}).get("settled") if isinstance(c.get("basis"), dict) else None
-            if not isinstance(settled, list):
-                continue
             for s in settled:
                 if not isinstance(s, dict):
                     continue

@@ -751,7 +751,9 @@ function poa_pending_snapshot(?array $close, ?array $challenges): array
         }
         $panel = $p['panel'] ?? [];
         $panelList = is_array($panel) ? array_values($panel) : [];
-        $size = count($panelList);
+        $size = $panelList !== []
+            ? count($panelList)
+            : (isset($p['panel_size']) ? (int) $p['panel_size'] : 0);
         if ($size === 0) {
             $without++;
         } else {
@@ -1511,15 +1513,30 @@ function poa_refresh_derived(bool $force = false): array
             ]);
         }
 
-        $epochsBody = poa_store_load_slim_closes();
+        // Build reports one close at a time so PHP stays under the 192M CLI cap.
         $txs = poa_recent_txs_row();
         $anchors = poa_anchors_row();
+        $epochsBody = [];
+        $pdo = poa_store_pdo();
+        if ($pdo instanceof PDO) {
+            foreach ($pdo->query('SELECT json FROM closes ORDER BY epoch ASC') as $row) {
+                $decoded = json_decode((string) ($row['json'] ?? ''), true);
+                if (is_array($decoded)) {
+                    $epochsBody[] = $decoded;
+                }
+            }
+        } else {
+            $epochsBody = poa_store_load_slim_closes();
+        }
         poa_write_derived_from_epochs(
             $epochsBody,
             is_array($status['body']) ? $status['body'] : [],
             is_array($txs['body']) ? $txs['body'] : [],
             is_array($anchors['body']) ? $anchors['body'] : []
         );
+        // Drop the in-memory close list before any further work.
+        $closeCount = count($epochsBody);
+        unset($epochsBody);
         // Stop writing the 27 MiB settled-index JSON when SQLite has it.
         // Legacy file left in place if present; new runs skip rewrite via empty unlink intent:
         $legacySettled = poa_derived_file('settled-index');
@@ -1555,7 +1572,7 @@ function poa_refresh_derived(bool $force = false): array
             '_status' => 200,
             'elapsed' => $elapsed,
             'tip_epoch' => $tipEpoch,
-            'closes' => count($epochsBody),
+            'closes' => $closeCount,
             'stripper' => implode("\n", $out),
         ];
     });

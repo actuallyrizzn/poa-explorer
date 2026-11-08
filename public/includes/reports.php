@@ -89,7 +89,9 @@ function poa_close_panel_health(array $close): array
             continue;
         }
         $panel = $p['panel'] ?? [];
-        $size = is_array($panel) ? count($panel) : 0;
+        $size = is_array($panel) && $panel !== []
+            ? count($panel)
+            : (isset($p['panel_size']) ? (int) $p['panel_size'] : 0);
         $sizeHist[(string) $size] = ($sizeHist[(string) $size] ?? 0) + 1;
         if ($size === 0) {
             $without++;
@@ -127,11 +129,34 @@ function poa_close_panel_health(array $close): array
     ];
 }
 
+function poa_store_settled_for_close(int $epoch): array
+{
+    $pdo = function_exists('poa_store_pdo') ? poa_store_pdo() : null;
+    if (!$pdo instanceof PDO) {
+        return [];
+    }
+    $st = $pdo->prepare('SELECT answer_txid, "from", passed FROM settled WHERE close_epoch = ?');
+    $st->execute([$epoch]);
+    $out = [];
+    foreach ($st as $row) {
+        $out[] = [
+            'answer' => $row['answer_txid'] ?? null,
+            'from' => $row['from'] ?? null,
+            'passed' => isset($row['passed']) ? ((int) $row['passed'] === 1) : null,
+        ];
+    }
+    return $out;
+}
+
 function poa_close_settlement_row(array $close, array $closesByEpoch): array
 {
     $n = (int) ($close['epoch'] ?? -1);
     $pending = is_array($close['basis']['pending'] ?? null) ? $close['basis']['pending'] : [];
     $settled = is_array($close['basis']['settled'] ?? null) ? $close['basis']['settled'] : [];
+    // Lean store keeps settled in SQLite only (close JSON has []).
+    if ($settled === [] && $n >= 0) {
+        $settled = poa_store_settled_for_close($n);
+    }
     $rewards = is_array($close['rewards'] ?? null) ? $close['rewards'] : [];
     $established = is_array($close['basis']['established_after'] ?? null) ? $close['basis']['established_after'] : [];
     $fp = is_array($close['basis']['final_payout']['capped'] ?? null) ? $close['basis']['final_payout']['capped'] : [];
