@@ -114,7 +114,7 @@ final class PoaReportsTest extends TestCase
         $this->assertSame(1, $rep['network']['recent_tx_types']['challenge']);
         $this->assertSame(0, $rep['close_agreement']['closes_with_missing_keys']);
         $this->assertSame(8, $rep['grading_backlog']['as_of_epoch']);
-        $this->assertSame('0.6.1', poa_changelog()[0]['version']);
+        $this->assertSame('0.7.0', poa_changelog()[0]['version']);
     }
 
     public function testEmptyReports(): void
@@ -133,8 +133,8 @@ final class PoaReportsTest extends TestCase
         ], [], []);
         $last = poa_derived_last_close();
         $this->assertSame(8, $last['epoch'] ?? null);
-        $idx = poa_derived_settled_index();
-        $this->assertArrayHasKey('bb', $idx);
+        // settled-index JSON no longer written (SQLite store replaces it).
+        $this->assertFileDoesNotExist(poa_derived_file('settled-index'));
         $body = poa_derived_reports_body();
         $this->assertSame(2, $body['settlement']['rows'][1]['settled'] ?? null);
         $this->assertTrue(poa_derived_fresh());
@@ -148,7 +148,8 @@ final class PoaReportsTest extends TestCase
         touch($old, time() - 8000);
         poa_prune_origin_cache(7200, 50);
         $this->assertFileDoesNotExist($old);
-        $hits = poa_settled_by_answer_txid(null, null, ['bb' => true], poa_derived_settled_index());
+        $idx = poa_settled_index_from_epochs($this->closes());
+        $hits = poa_settled_by_answer_txid(null, null, ['bb' => true], $idx);
         $this->assertSame('bb', $hits[0]['answer_txid'] ?? null);
     }
 

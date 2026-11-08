@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/rate_limit.php';
+require_once __DIR__ . '/store.php';
 
 function poa_h(?string $s): string
 {
@@ -111,20 +112,31 @@ function poa_with_file_lock(string $lockFile, callable $fn)
 function poa_json_get(string $path, ?int $ttl = null): array
 {
     $path = '/' . ltrim($path, '/');
+    // Lean rework (0.7): never fetch /api/epochs on the FPM request path.
+    // Full-blob fetch + lock-epochs + memory bump lived here — commented, not deleted
+    // (Mark: recover for dedicated-box / phase-two paid heavy access).
+    //
+    // if ($path === '/api/epochs') {
+    //     static $epochsLockHeld = false;
+    //     if (!$epochsLockHeld) {
+    //         $epochsLockHeld = true;
+    //         try {
+    //             return poa_with_file_lock(poa_cache_dir() . '/lock-epochs', static function () use ($path, $ttl) {
+    //                 poa_bump_memory();
+    //                 return poa_json_get($path, $ttl);
+    //             });
+    //         } finally {
+    //             $epochsLockHeld = false;
+    //         }
+    //     }
+    //     poa_bump_memory();
+    // }
     if ($path === '/api/epochs') {
-        static $epochsLockHeld = false;
-        if (!$epochsLockHeld) {
-            $epochsLockHeld = true;
-            try {
-                return poa_with_file_lock(poa_cache_dir() . '/lock-epochs', static function () use ($path, $ttl) {
-                    poa_bump_memory();
-                    return poa_json_get($path, $ttl);
-                });
-            } finally {
-                $epochsLockHeld = false;
-            }
-        }
-        poa_bump_memory();
+        return poa_wrap([
+            '_error' => 'full /api/epochs fetch disabled on this host; use the slim store / windowed /api/epochs.php',
+            '_path' => $path,
+            '_status' => 0,
+        ]);
     }
     if (str_starts_with($path, '/api/hosted')) {
         return poa_wrap([
@@ -214,8 +226,12 @@ function poa_json_get(string $path, ?int $ttl = null): array
         '_status' => $status,
         'body' => $decoded,
     ]);
+    // Cache denylist: never persist huge origin payloads (epochs already blocked above).
     if ($err === null) {
-        @file_put_contents($cacheFile, json_encode($out, JSON_UNESCAPED_SLASHES));
+        $encoded = json_encode($out, JSON_UNESCAPED_SLASHES);
+        if (is_string($encoded) && strlen($encoded) <= POA_EXPLORER_ORIGIN_CACHE_MAX_BYTES) {
+            @file_put_contents($cacheFile, $encoded);
+        }
     }
     return $out;
 }
@@ -405,9 +421,51 @@ function poa_anchors(): array
     return is_array($body) ? $body : [];
 }
 
+/**
+ * Windowed epochs for the public API (slim store). Not a full minepoa mirror.
+ * Legacy full fetch: poa_json_get('/api/epochs') — disabled; see comment there.
+ */
 function poa_epochs(): array
 {
-    return poa_json_get('/api/epochs', POA_EXPLORER_SLOW_CACHE_TTL);
+    if (!poa_store_present()) {
+        return poa_wrap([
+            '_error' => 'Epoch slim store is not on disk yet. CLI cron builds it; this path does not fetch full /api/epochs.',
+            '_cache' => 'miss',
+            '_status' => 0,
+            'body' => null,
+        ]);
+    }
+    $window = poa_store_window(POA_EXPLORER_EPOCHS_WINDOW);
+    return poa_wrap([
+        '_error' => null,
+        '_cache' => poa_derived_fresh() ? 'hit' : 'stale',
+        '_status' => 200,
+        '_path' => '/api/epochs',
+        'body' => $window,
+        '_note' => 'windowed last ' . POA_EXPLORER_EPOCHS_WINDOW . ' slim closes; full history on minepoa.com/api/epochs',
+    ]);
+}
+
+function poa_epochs_catalog(): array
+{
+    if (!poa_store_present()) {
+        return poa_wrap([
+            '_error' => 'Epoch slim store is not on disk yet.',
+            '_cache' => 'miss',
+            '_status' => 0,
+            'body' => null,
+        ]);
+    }
+    return poa_wrap([
+        '_error' => null,
+        '_cache' => poa_derived_fresh() ? 'hit' : 'stale',
+        '_status' => 200,
+        'body' => [
+            'mode' => 'catalog',
+            'closes' => poa_store_catalog(500),
+            'window' => POA_EXPLORER_EPOCHS_WINDOW,
+        ],
+    ]);
 }
 
 function poa_challenges(): array
@@ -439,6 +497,16 @@ function poa_finality_label(array $row): string
 function poa_changelog(): array
 {
     return [
+        [
+            'version' => '0.7.0',
+            'date' => '2026-11-08',
+            'changes' => [
+                'Lean rework (PRD #1676): CLI stream-strips /api/epochs into SQLite; PHP never json_decodes the full blob on FPM or cron.',
+                'GET /api/epochs.php is windowed (last 30 slim closes) or ?mode=catalog; /api/close.php reads SQLite by epoch. Full-blob FPM path commented out, not deleted.',
+                'Tip-gated heavy cron + separate refresh-light.php for health/market. memory_limit 192M hard, no bump. Health HTML/API read derived file only — no lock-across-I/O.',
+                'Cache denylist for large origin payloads; dir cap + GC. Rate limits from 0.6.1 unchanged.',
+            ],
+        ],
         [
             'version' => '0.6.1',
             'date' => '2026-11-07',
@@ -562,11 +630,12 @@ function poa_latest_close(array $epochsBody): ?array
 
 function poa_latest_close_from_origin(): ?array
 {
-    $row = poa_epochs();
-    if (!is_array($row['body'])) {
-        return null;
+    // Prefer slim store — never pull full origin epochs on this path.
+    $fromStore = poa_store_latest_close();
+    if (is_array($fromStore)) {
+        return $fromStore;
     }
-    return poa_latest_close($row['body']);
+    return poa_derived_last_close();
 }
 
 function poa_close_by_epoch($epoch): array
@@ -575,25 +644,23 @@ function poa_close_by_epoch($epoch): array
         return poa_wrap(['_error' => 'pass epoch as a non-negative integer']);
     }
     $n = (int) $epoch;
-    $row = poa_epochs();
-    if ($row['_error'] && !is_array($row['body'])) {
-        return $row;
-    }
-    $found = null;
-    foreach ((array) $row['body'] as $close) {
-        if (is_array($close) && (int) ($close['epoch'] ?? -1) === $n) {
-            $found = $close;
-            break;
-        }
-    }
+    // Lean rework: keyed SQLite lookup. Old path scanned poa_epochs() full blob — commented:
+    // $row = poa_epochs(); foreach ((array)$row['body'] as $close) { ... }
+    $found = poa_store_close_by_epoch($n);
     if ($found === null) {
         return poa_wrap([
-            '_error' => 'no close record for that epoch',
-            '_cache' => $row['_cache'] ?? 'miss',
+            '_error' => 'no close record for that epoch in slim store',
+            '_cache' => poa_store_present() ? 'miss' : 'miss',
+            '_status' => 0,
         ]);
     }
-    $row['body'] = $found;
-    return $row;
+    return poa_wrap([
+        '_error' => null,
+        '_cache' => poa_derived_fresh() ? 'hit' : 'stale',
+        '_status' => 200,
+        '_path' => '/api/epochs',
+        'body' => $found,
+    ]);
 }
 
 function poa_close_keys_present(array $close): array
@@ -891,6 +958,15 @@ function poa_settled_index_from_epochs(?array $epochsBody): array
 
 function poa_settled_by_answer_txid(?array $close, ?array $epochsBody, array $txIds, ?array $settledIndex = null): array
 {
+    // Prefer SQLite keyed lookups (full history, no 27 MiB JSON load).
+    // Skip when caller supplied epochsBody/settledIndex (unit tests / explicit overrides).
+    if (
+        poa_store_present()
+        && ($settledIndex === null || $settledIndex === [])
+        && $epochsBody === null
+    ) {
+        return poa_store_settled_for_answers($txIds);
+    }
     if (is_array($settledIndex)) {
         $hits = [];
         foreach ($txIds as $aid => $_) {
@@ -1074,22 +1150,20 @@ function poa_derived_file(string $name): string
 
 function poa_derived_present(): bool
 {
-    foreach (['reports', 'last-close', 'settled-index'] as $name) {
-        if (!is_file(poa_derived_file($name))) {
-            return false;
-        }
-    }
-    return true;
+    // reports + last-close required. Settled lives in SQLite (preferred) or legacy settled-index.
+    return is_file(poa_derived_file('reports')) && is_file(poa_derived_file('last-close'));
 }
 
 function poa_derived_mtime(): ?int
 {
+    $tStore = poa_store_mtime();
     $f = poa_derived_file('reports');
-    if (!is_file($f)) {
+    $tRep = is_file($f) ? filemtime($f) : false;
+    $candidates = array_filter([$tStore, $tRep === false ? null : $tRep], static fn($v) => $v !== null);
+    if ($candidates === []) {
         return null;
     }
-    $t = filemtime($f);
-    return $t === false ? null : $t;
+    return max($candidates);
 }
 
 function poa_derived_fresh(): bool
@@ -1116,12 +1190,20 @@ function poa_read_derived_json(string $name): mixed
 
 function poa_derived_last_close(): ?array
 {
+    $fromStore = poa_store_latest_close();
+    if (is_array($fromStore)) {
+        return $fromStore;
+    }
     $row = poa_read_derived_json('last-close');
     return is_array($row) ? $row : null;
 }
 
 function poa_derived_settled_index(): array
 {
+    // Avoid loading the legacy 27 MiB JSON when SQLite is present.
+    if (poa_store_present()) {
+        return [];
+    }
     $row = poa_read_derived_json('settled-index');
     return is_array($row) ? $row : [];
 }
@@ -1144,10 +1226,11 @@ function poa_write_derived_from_epochs(
     }
     $reports = poa_reports_from_public($epochsBody, $status, $txs, $anchors);
     $last = poa_latest_close($epochsBody);
-    $settled = poa_settled_index_from_epochs($epochsBody);
     @file_put_contents(poa_derived_file('reports'), json_encode($reports, JSON_UNESCAPED_SLASHES));
     @file_put_contents(poa_derived_file('last-close'), json_encode($last, JSON_UNESCAPED_SLASHES));
-    @file_put_contents(poa_derived_file('settled-index'), json_encode($settled, JSON_UNESCAPED_SLASHES));
+    // Legacy 27 MiB settled-index JSON write — commented (SQLite settled table replaces it).
+    // $settled = poa_settled_index_from_epochs($epochsBody);
+    // @file_put_contents(poa_derived_file('settled-index'), json_encode($settled, JSON_UNESCAPED_SLASHES));
 }
 
 function poa_prune_origin_cache(int $maxAge = 7200, int $maxDelete = 1500): void
@@ -1184,7 +1267,7 @@ function poa_derived_row(): array
 {
     if (!poa_derived_present()) {
         return [
-            '_error' => 'Epoch snapshot is not on disk yet. A five-minute cron builds it; this page does not fetch /api/epochs on visit.',
+            '_error' => 'Epoch slim store is not on disk yet. Tip-gated CLI cron builds it; this page does not fetch /api/epochs on visit.',
             '_cache' => 'miss',
             '_status' => 0,
         ];
@@ -1196,33 +1279,276 @@ function poa_derived_row(): array
     ];
 }
 
-function poa_refresh_derived(): array
+function poa_stripper_bin(): string
 {
-    return poa_with_file_lock(poa_cache_dir() . '/lock-derived', static function (): array {
-        poa_bump_memory();
-        $epochs = poa_epochs();
+    $env = getenv('POA_STRIP_EPOCHS_BIN');
+    if (is_string($env) && $env !== '' && is_file($env)) {
+        return $env;
+    }
+    $candidates = [
+        dirname(__DIR__, 2) . '/tools/strip_epochs_to_sqlite.py',
+        dirname(__DIR__) . '/../tools/strip_epochs_to_sqlite.py',
+        '/var/www/poa.explorer.zero1.network/tools/strip_epochs_to_sqlite.py',
+        '/var/www/poa.explorer.zero1.network/html/../tools/strip_epochs_to_sqlite.py',
+        // multihost git SRC_DIR (Ada sync; public/ alone does not ship tools/)
+        '/root/repos/poa.explorer.zero1.network/tools/strip_epochs_to_sqlite.py',
+    ];
+    foreach ($candidates as $c) {
+        if (is_file($c)) {
+            return $c;
+        }
+    }
+    return $candidates[0];
+}
+
+function poa_cache_bytes_under(string $dir, bool $derivedOnly): int
+{
+    if (!is_dir($dir)) {
+        return 0;
+    }
+    $n = 0;
+    foreach (scandir($dir) ?: [] as $base) {
+        if ($base === '.' || $base === '..') {
+            continue;
+        }
+        $f = $dir . '/' . $base;
+        if (!is_file($f)) {
+            continue;
+        }
+        $isDerived = str_starts_with($base, 'derived-')
+            || str_starts_with($base, 'epochs-slim')
+            || str_ends_with($base, '.sqlite')
+            || str_ends_with($base, '.sqlite-wal')
+            || str_ends_with($base, '.sqlite-shm');
+        if ($derivedOnly && !$isDerived) {
+            continue;
+        }
+        if (!$derivedOnly && ($isDerived || str_starts_with($base, 'lock-') || $base === 'ratelimit' || is_dir($f))) {
+            continue;
+        }
+        $n += (int) filesize($f);
+    }
+    return $n;
+}
+
+function poa_cache_gc(): void
+{
+    $dir = poa_cache_dir();
+    if (!is_dir($dir)) {
+        return;
+    }
+    // LRU delete non-derived origin caches until under cap.
+    $files = [];
+    foreach (scandir($dir) ?: [] as $base) {
+        if ($base === '.' || $base === '..') {
+            continue;
+        }
+        if (str_starts_with($base, 'derived-') || str_starts_with($base, 'lock-')
+            || str_starts_with($base, 'epochs-slim') || $base === 'ratelimit') {
+            continue;
+        }
+        $f = $dir . '/' . $base;
+        if (!is_file($f)) {
+            continue;
+        }
+        $files[] = ['path' => $f, 'mtime' => (int) filemtime($f), 'size' => (int) filesize($f)];
+    }
+    usort($files, static fn($a, $b) => $a['mtime'] <=> $b['mtime']);
+    $total = array_sum(array_column($files, 'size'));
+    foreach ($files as $meta) {
+        if ($total <= POA_EXPLORER_CACHE_DIR_CAP_BYTES) {
+            break;
+        }
+        @unlink($meta['path']);
+        $total -= $meta['size'];
+    }
+}
+
+/**
+ * Tip-gated heavy refresh: stream-strip epochs → SQLite + slim reports/last-close.
+ * Does NOT call poa_health_run / market (those are refresh-light.php).
+ */
+function poa_refresh_derived(bool $force = false): array
+{
+    if (PHP_SAPI !== 'cli') {
+        return poa_wrap(['_error' => 'refresh-derived is CLI only', '_status' => 403]);
+    }
+    @ini_set('memory_limit', POA_EXPLORER_CLI_MEMORY);
+    @set_time_limit(POA_EXPLORER_CLI_WALL_SECONDS);
+
+    return poa_with_file_lock(poa_cache_dir() . '/lock-derived', static function () use ($force): array {
+        $t0 = microtime(true);
         $status = poa_status();
+        $tipEpoch = null;
+        if (is_array($status['body'])) {
+            $tipEpoch = $status['body']['epoch'] ?? $status['body']['current_epoch'] ?? $status['body']['epochs_closed'] ?? null;
+            if (is_numeric($tipEpoch)) {
+                $tipEpoch = (int) $tipEpoch;
+            } else {
+                $tipEpoch = null;
+            }
+        }
+        $stateFile = poa_derived_file('tip-epoch');
+        $prevTip = null;
+        if (is_file($stateFile)) {
+            $prevRaw = trim((string) file_get_contents($stateFile));
+            if ($prevRaw !== '' && is_numeric($prevRaw)) {
+                $prevTip = (int) $prevRaw;
+            }
+        }
+        $weeklyForce = false;
+        $stampFile = poa_derived_file('last-heavy-refresh');
+        if (is_file($stampFile)) {
+            $age = time() - (int) filemtime($stampFile);
+            if ($age > 7 * 86400) {
+                $weeklyForce = true;
+            }
+        } else {
+            $weeklyForce = true;
+        }
+        if (!$force && $tipEpoch !== null && $prevTip !== null && $tipEpoch === $prevTip && !$weeklyForce) {
+            return [
+                '_error' => null,
+                '_cache' => 'skip',
+                '_status' => 200,
+                '_note' => 'tip unchanged; heavy ingest skipped',
+                'tip_epoch' => $tipEpoch,
+            ];
+        }
+
+        $dir = poa_cache_dir();
+        if (!is_dir($dir)) {
+            mkdir($dir, 0770, true);
+        }
+        $raw = $dir . '/epochs-raw.download';
+        // Bootstrap: --from-file=/path or POA_EPOCHS_RAW_FILE (e.g. §5 backup while minepoa /api/epochs is paused).
+        $fromFile = getenv('POA_EPOCHS_RAW_FILE');
+        if (!is_string($fromFile) || $fromFile === '') {
+            $fromFile = null;
+        }
+        if ($fromFile === null && PHP_SAPI === 'cli' && isset($GLOBALS['argv']) && is_array($GLOBALS['argv'])) {
+            foreach ($GLOBALS['argv'] as $arg) {
+                if (is_string($arg) && str_starts_with($arg, '--from-file=')) {
+                    $fromFile = substr($arg, strlen('--from-file='));
+                    break;
+                }
+            }
+        }
+        if (is_string($fromFile) && $fromFile !== '' && is_file($fromFile)) {
+            if (!@copy($fromFile, $raw)) {
+                return poa_wrap(['_error' => 'could not copy --from-file into temp', '_status' => 0]);
+            }
+        } else {
+            $url = poa_origin() . '/api/epochs';
+            $ctx = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'timeout' => 120,
+                    'header' => "User-Agent: " . POA_EXPLORER_UA . "\r\nAccept: application/json\r\n",
+                    'ignore_errors' => true,
+                ],
+                'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
+            ]);
+            $rawBytes = @file_get_contents($url, false, $ctx);
+            $httpStatus = 0;
+            if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $hm)) {
+                $httpStatus = (int) $hm[1];
+            }
+            if ($rawBytes === false || $rawBytes === '') {
+                return poa_wrap(['_error' => 'origin /api/epochs download failed', '_status' => $httpStatus]);
+            }
+            if ($httpStatus >= 400) {
+                return poa_wrap([
+                    '_error' => 'origin /api/epochs HTTP ' . $httpStatus . ': ' . substr($rawBytes, 0, 200),
+                    '_status' => $httpStatus,
+                ]);
+            }
+            $probe = json_decode($rawBytes, true);
+            if (is_array($probe) && isset($probe['error']) && !array_is_list($probe)) {
+                return poa_wrap([
+                    '_error' => 'origin /api/epochs paused/error: ' . (string) $probe['error'],
+                    '_status' => $httpStatus ?: 503,
+                ]);
+            }
+            unset($probe);
+            if (@file_put_contents($raw, $rawBytes) === false) {
+                return poa_wrap(['_error' => 'could not write epochs temp file', '_status' => 0]);
+            }
+            unset($rawBytes);
+        }
+
+        $bin = poa_stripper_bin();
+        $sqlite = poa_store_path();
+        $jsonl = poa_store_jsonl_path();
+        $cmd = escapeshellarg(PHP_BINARY === 'php' || PHP_BINARY === '' ? 'python3' : 'python3')
+            . ' ' . escapeshellarg($bin)
+            . ' ' . escapeshellarg($raw)
+            . ' ' . escapeshellarg($sqlite)
+            . ' --slim-jsonl ' . escapeshellarg($jsonl)
+            . ' 2>&1';
+        // Prefer python3 explicitly
+        $cmd = 'python3 ' . escapeshellarg($bin)
+            . ' ' . escapeshellarg($raw)
+            . ' ' . escapeshellarg($sqlite)
+            . ' --slim-jsonl ' . escapeshellarg($jsonl)
+            . ' 2>&1';
+        $out = [];
+        $code = 0;
+        exec($cmd, $out, $code);
+        @unlink($raw);
+        if ($code !== 0) {
+            return poa_wrap([
+                '_error' => 'stripper failed: ' . implode("\n", $out),
+                '_status' => $code,
+            ]);
+        }
+
+        $epochsBody = poa_store_load_slim_closes();
         $txs = poa_recent_txs_row();
         $anchors = poa_anchors_row();
-        $epochsBody = is_array($epochs['body']) ? $epochs['body'] : [];
         poa_write_derived_from_epochs(
             $epochsBody,
             is_array($status['body']) ? $status['body'] : [],
             is_array($txs['body']) ? $txs['body'] : [],
             is_array($anchors['body']) ? $anchors['body'] : []
         );
-        unset($epochsBody);
+        // Stop writing the 27 MiB settled-index JSON when SQLite has it.
+        // Legacy file left in place if present; new runs skip rewrite via empty unlink intent:
+        $legacySettled = poa_derived_file('settled-index');
+        if (is_file($legacySettled) && poa_store_present()) {
+            // Comment-don't-delete: move aside once so GC budget is free.
+            @rename($legacySettled, $legacySettled . '.pre-0.7.bak');
+        }
+
+        if ($tipEpoch !== null) {
+            @file_put_contents($stateFile, (string) $tipEpoch);
+        }
+        @file_put_contents($stampFile, gmdate('c'));
         poa_prune_origin_cache();
-        $err = $epochs['_error'] ?? null;
-        foreach ([$status, $txs, $anchors] as $row) {
+        poa_cache_gc();
+
+        $elapsed = microtime(true) - $t0;
+        if ($elapsed > POA_EXPLORER_CLI_WALL_SECONDS) {
+            return poa_wrap([
+                '_error' => 'wall clock exceeded after strip',
+                '_status' => 0,
+                'elapsed' => $elapsed,
+            ]);
+        }
+        $err = $status['_error'] ?? null;
+        foreach ([$txs, $anchors] as $row) {
             if ($err === null && !empty($row['_error'])) {
                 $err = $row['_error'];
             }
         }
         return [
             '_error' => $err,
-            '_cache' => $epochs['_cache'] ?? 'fresh',
-            '_status' => $epochs['_status'] ?? 0,
+            '_cache' => 'fresh',
+            '_status' => 200,
+            'elapsed' => $elapsed,
+            'tip_epoch' => $tipEpoch,
+            'closes' => count($epochsBody),
+            'stripper' => implode("\n", $out),
         ];
     });
 }

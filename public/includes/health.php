@@ -354,46 +354,76 @@ function poa_health_load_since(): array
 function poa_health_run(?int $now = null): array
 {
     $now = $now ?? time();
-    return poa_with_file_lock(poa_cache_dir() . '/lock-health', static function () use ($now): array {
-        $status = poa_status();
-        $txs = poa_recent_txs_row();
-        $anchors = poa_anchors_row();
-        $swaps = poa_json_get('/api/swaps');
-        $bookRow = poa_url_json(poa_swap_book_url(), POA_MARKET_TTL);
-        $mtime = poa_derived_mtime();
-        $age = $mtime === null ? null : ($now - $mtime);
-        $body = poa_health_build([
-            'status' => $status,
-            'txs' => $txs,
-            'anchors' => $anchors,
-            'swaps' => $swaps,
-            'book' => is_array($bookRow['body']) ? $bookRow['body'] : null,
-            'book_error' => $bookRow['_error'] ?? null,
-            'derived_present' => poa_derived_present(),
-            'derived_age' => $age,
-            'last_close' => poa_derived_last_close(),
-        ], poa_health_load_since(), $now);
-        foreach ($body['feeds'] as $feed) {
-            if (($feed['id'] ?? '') === 'swap_writes') {
-                $body['swap_writes']['since'] = $feed['since'] ?? null;
-                $body['swap_writes']['status'] = $feed['status'] ?? $body['swap_writes']['status'];
-            }
+    // Network I/O WITHOUT lock (was: exclusive flock across origin long-polls — multihost outage).
+    // Old shape kept commented for recovery:
+    // return poa_with_file_lock(poa_cache_dir() . '/lock-health', static function () use ($now): array { ... fetches ... });
+    $status = poa_status();
+    $txs = poa_recent_txs_row();
+    $anchors = poa_anchors_row();
+    $swaps = poa_json_get('/api/swaps');
+    $bookRow = poa_url_json(poa_swap_book_url(), POA_MARKET_TTL);
+    $mtime = poa_derived_mtime();
+    $age = $mtime === null ? null : ($now - $mtime);
+    $body = poa_health_build([
+        'status' => $status,
+        'txs' => $txs,
+        'anchors' => $anchors,
+        'swaps' => $swaps,
+        'book' => is_array($bookRow['body']) ? $bookRow['body'] : null,
+        'book_error' => $bookRow['_error'] ?? null,
+        'derived_present' => poa_derived_present(),
+        'derived_age' => $age,
+        'last_close' => poa_derived_last_close(),
+    ], poa_health_load_since(), $now);
+    foreach ($body['feeds'] as $feed) {
+        if (($feed['id'] ?? '') === 'swap_writes') {
+            $body['swap_writes']['since'] = $feed['since'] ?? null;
+            $body['swap_writes']['status'] = $feed['status'] ?? $body['swap_writes']['status'];
         }
-        @file_put_contents(poa_health_file('health'), json_encode($body, JSON_UNESCAPED_SLASHES));
-        @file_put_contents(poa_health_file('health-since'), json_encode(poa_health_since_map($body['feeds']), JSON_UNESCAPED_SLASHES));
+    }
+    $healthJson = json_encode($body, JSON_UNESCAPED_SLASHES);
+    $sinceJson = json_encode(poa_health_since_map($body['feeds']), JSON_UNESCAPED_SLASHES);
+    // Short lock only around atomic rename of finished artifacts.
+    return poa_with_file_lock(poa_cache_dir() . '/lock-health', static function () use ($healthJson, $sinceJson, $body): array {
+        $h = poa_health_file('health');
+        $s = poa_health_file('health-since');
+        $ht = $h . '.tmp';
+        $st = $s . '.tmp';
+        @file_put_contents($ht, $healthJson);
+        @file_put_contents($st, $sinceJson);
+        @rename($ht, $h);
+        @rename($st, $s);
         return poa_wrap(['_cache' => 'fresh', '_status' => 200, 'body' => $body]);
     });
 }
 
 function poa_health_row(): array
 {
+    // Lean rework: request path NEVER takes lock-health or polls origin.
+    // Inline refresh via poa_health_run() commented out (Mark: comment, don't delete).
+    // Only CLI refresh-light.php / refresh-derived companions write derived-health.
     $cached = poa_read_derived_json('health');
-    if (is_array($cached) && isset($cached['probed_at']) && is_numeric($cached['probed_at'])) {
-        if ((time() - (int) $cached['probed_at']) < POA_HEALTH_TTL) {
-            return poa_wrap(['_cache' => 'hit', '_status' => 200, 'body' => $cached]);
-        }
+    if (is_array($cached) && isset($cached['probed_at'])) {
+        $age = is_numeric($cached['probed_at']) ? (time() - (int) $cached['probed_at']) : null;
+        $fresh = $age !== null && $age < POA_HEALTH_TTL;
+        return poa_wrap([
+            '_cache' => $fresh ? 'hit' : 'stale',
+            '_status' => 200,
+            'body' => $cached,
+        ]);
     }
-    return poa_health_run();
+    // if (is_array($cached) && isset($cached['probed_at']) && is_numeric($cached['probed_at'])) {
+    //     if ((time() - (int) $cached['probed_at']) < POA_HEALTH_TTL) {
+    //         return poa_wrap(['_cache' => 'hit', '_status' => 200, 'body' => $cached]);
+    //     }
+    // }
+    // return poa_health_run();
+    return poa_wrap([
+        '_error' => 'Health snapshot not on disk yet. Light CLI cron probes feeds; pages do not lock or poll origin.',
+        '_cache' => 'miss',
+        '_status' => 0,
+        'body' => null,
+    ]);
 }
 
 function poa_health_banner_html(?array $body = null): string

@@ -7,7 +7,7 @@ declare(strict_types=1);
  */
 
 const POA_EXPLORER_ORIGIN = 'https://minepoa.com';
-const POA_EXPLORER_API_VERSION = '0.6.1';
+const POA_EXPLORER_API_VERSION = '0.7.0';
 const POA_EXPLORER_SLOW_CACHE_TTL = 180;
 const POA_EXPLORER_DERIVED_STALE_AFTER = 900;
 const POA_HEALTH_TTL = 45;
@@ -19,7 +19,15 @@ const POA_SWAP_BOOK_URL = 'https://poaswap.io/api/book';
 const POA_COINGECKO_SIMPLE_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=solana,ethereum&vs_currencies=usd';
 const POA_SETTLE_DEGRADED_AFTER = 28800;
 const POA_SETTLE_DOWN_AFTER = 57600;
+/** @deprecated Lean rework (0.7): FPM never bumps memory; CLI stripper uses its own budget. Kept for commented legacy paths. */
 const POA_EXPLORER_EPOCHS_MEMORY = '384M';
+/** Hard cap for CLI refresh-derived (no bump above this). */
+const POA_EXPLORER_CLI_MEMORY = '192M';
+const POA_EXPLORER_CLI_WALL_SECONDS = 600;
+const POA_EXPLORER_CACHE_DIR_CAP_BYTES = 67108864; // 64 MiB
+const POA_EXPLORER_DERIVED_CAP_BYTES = 33554432; // 32 MiB
+const POA_EXPLORER_ORIGIN_CACHE_MAX_BYTES = 1048576; // never persist origin responses larger than 1 MiB
+const POA_EXPLORER_EPOCHS_WINDOW = 30;
 const POA_EXPLORER_PENDING_PAGE_LIMIT = 100;
 const POA_EXPLORER_EPOCH_EXPIRY = 16;
 const POA_REPORTS_WINDOW = 30;
@@ -71,7 +79,7 @@ function poa_url_is_allowed(string $url): bool
     }
     return (bool) preg_match('#^http://(127\.0\.0\.1|\[::1\]|localhost)(:\d+)?/#i', $url);
 }
-const POA_EXPLORER_UA = 'PoA-Explorer/0.6.1 (read-only; https://poa.explorer.zero1.network)';
+const POA_EXPLORER_UA = 'PoA-Explorer/0.7.0 (read-only; https://poa.explorer.zero1.network)';
 const POA_EXPLORER_TIMEOUT = 20;
 const POA_EXPLORER_CACHE_TTL = 45;
 const POA_EXPLORER_RECENT_TX_LIMIT = 40;

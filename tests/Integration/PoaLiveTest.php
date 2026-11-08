@@ -64,6 +64,10 @@ final class PoaLiveTest extends TestCase
 
     public function testEpochs(): void
     {
+        $built = poa_refresh_derived(true);
+        if (!empty($built['_error'])) {
+            $this->markTestSkipped('could not refresh slim store: ' . (string) $built['_error']);
+        }
         $row = poa_epochs();
         $this->assertEmpty($row['_error']);
         $this->assertIsArray($row['body']);
@@ -73,7 +77,7 @@ final class PoaLiveTest extends TestCase
 
     public function testReportsEpoch8CopperwickCase(): void
     {
-        $built = poa_refresh_derived();
+        $built = poa_refresh_derived(true);
         if (!empty($built['_error'])) {
             $this->markTestSkipped('could not refresh derived snapshot: ' . (string) $built['_error']);
         }

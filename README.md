@@ -59,13 +59,23 @@ Python SDK: `sdk/python` (`PoaExplorerClient`). PHP SDK: `sdk/php/PoaExplorerCli
 
 Never `/api/hosted/*`. Origin JSON cache lives outside the web root (45s TTL, last-good on origin failure).
 
-The 18MB `/api/epochs` snapshot used by pending, address grading, and Reports is **not** built on visit. A CLI cron writes a slim derived cache; pages only read it:
+Closed-epoch data used by pending, address grading, and Reports is **not** built on visit. A tip-gated CLI cron stream-strips minepoa `/api/epochs` into SQLite + slim derived files (never `json_decode` of the full blob in PHP). A separate light cron refreshes health/market only:
 
 ```bash
-*/5 * * * * /usr/bin/flock -n /tmp/poa-explorer-derived.lock /usr/bin/php /var/www/poa.explorer.zero1.network/html/cron/refresh-derived.php >> /var/log/poa-explorer-derived.log 2>&1
+# Heavy ingest — tip-gated; flock; 192M / 10m wall (example cadence)
+*/15 * * * * /usr/bin/flock -n /tmp/poa-explorer-derived.lock /usr/bin/php /var/www/poa.explorer.zero1.network/html/cron/refresh-derived.php >> /var/log/poa-explorer-derived.log 2>&1
+# Light health/market — no epochs
+*/10 * * * * /usr/bin/flock -n /tmp/poa-explorer-light.lock /usr/bin/php /var/www/poa.explorer.zero1.network/html/cron/refresh-light.php >> /var/log/poa-explorer-light.log 2>&1
 ```
 
-HTTP to that script returns 403. Missing or stale snapshot is labeled, not filled in.
+Deploy `tools/strip_epochs_to_sqlite.py` next to the app (repo `tools/` — on multihost copy or leave under `/root/repos/poa.explorer.zero1.network/tools/`). HTTP to those scripts returns 403. Missing or stale snapshot is labeled, not filled in. `GET /api/epochs.php` is **windowed** (not a full minepoa mirror); use minepoa origin for the complete history.
+
+While minepoa `/api/epochs` is paused, bootstrap once from the §5 backup (stream-strip only — never `json_decode` the blob in PHP):
+
+```bash
+php /var/www/poa.explorer.zero1.network/html/cron/refresh-derived.php --force \
+  --from-file=/root/backups/poa-epochs-cache-….json.bak.20261108
+```
 
 ## Pages
 

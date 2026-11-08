@@ -59,6 +59,8 @@ final class PoaFixtureOriginTest extends TestCase
 
     public function testEpochsAndChallenges(): void
     {
+        $built = poa_refresh_derived(true);
+        $this->assertNull($built['_error'] ?? null, (string) ($built['_error'] ?? json_encode($built)));
         $epochs = poa_epochs();
         $this->assertNull($epochs['_error']);
         $this->assertSame(0, $epochs['body'][0]['epoch']);
@@ -73,6 +75,9 @@ final class PoaFixtureOriginTest extends TestCase
         $close = poa_close_by_epoch('0');
         $this->assertSame(0, $close['body']['epoch']);
         $this->assertSame([], poa_close_keys_present($close['body']));
+        // Full origin epochs path is disabled on FPM/json_get.
+        $blocked = poa_json_get('/api/epochs');
+        $this->assertNotNull($blocked['_error']);
     }
 
     public function testErrorBodies(): void
