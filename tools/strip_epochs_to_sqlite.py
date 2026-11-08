@@ -17,16 +17,6 @@ import sys
 from typing import Any, Iterator, TextIO
 
 
-KEEP_CLOSE_TOP = ("epoch", "ts", "pool", "note", "rewards")
-KEEP_BASIS = (
-    "pending",
-    "settled",
-    "established_after",
-    "attestations",
-    "final_payout",
-)
-
-
 def _skip_ws(f: TextIO) -> str:
     while True:
         ch = f.read(1)
@@ -237,35 +227,158 @@ def iter_top_array_objects(path: str) -> Iterator[dict[str, Any]]:
         yield from _iter_array_objects(f)
 
 
+KEEP_CLOSE_TOP = ("epoch", "ts", "pool", "note")
+
+
+def slim_panel(panel: Any) -> list[Any]:
+    if not isinstance(panel, list):
+        return []
+    out: list[Any] = []
+    for x in panel:
+        if isinstance(x, (str, int, float, bool)) or x is None:
+            out.append(x)
+        elif isinstance(x, dict):
+            out.append(
+                x.get("id")
+                or x.get("addr")
+                or x.get("address")
+                or x.get("grader")
+                or next((v for v in x.values() if isinstance(v, str)), None)
+                or "seat"
+            )
+        else:
+            out.append(str(x)[:96])
+    return out
+
+
+def slim_grades(grades: Any) -> Any:
+    if grades is None:
+        return None
+    if not isinstance(grades, list):
+        return grades
+    out = []
+    for g in grades:
+        if not isinstance(g, dict):
+            continue
+        out.append(
+            {
+                k: g[k]
+                for k in ("score", "ts", "grader")
+                if k in g
+            }
+        )
+    return out
+
+
+def slim_pending_map(pending: Any) -> dict[str, Any]:
+    if not isinstance(pending, dict):
+        return {}
+    out: dict[str, Any] = {}
+    for aid, p in pending.items():
+        if not isinstance(p, dict):
+            continue
+        row: dict[str, Any] = {}
+        for k in ("kind", "since", "originalPassed"):
+            if k in p:
+                row[k] = p[k]
+        if "panel" in p:
+            row["panel"] = slim_panel(p.get("panel"))
+        if "grades" in p:
+            row["grades"] = slim_grades(p.get("grades"))
+        out[str(aid)] = row
+    return out
+
+
+def slim_settled_list(settled: Any) -> list[dict[str, Any]]:
+    if not isinstance(settled, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for s in settled:
+        if not isinstance(s, dict):
+            continue
+        row = {k: s[k] for k in ("answer", "from", "passed") if k in s}
+        if row.get("answer"):
+            out.append(row)
+    return out
+
+
+def slim_rewards(rewards: Any) -> Any:
+    """Keep address→amount map but drop non-positive noise when huge."""
+    if not isinstance(rewards, dict):
+        return rewards if isinstance(rewards, list) else ([] if rewards is None else rewards)
+    # Cap: keep only positive amounts (reports paid count).
+    slim = {}
+    for addr, amt in rewards.items():
+        try:
+            if amt is None or amt == "":
+                continue
+            if float(amt) > 0:
+                slim[str(addr)] = amt
+        except (TypeError, ValueError):
+            continue
+    return slim
+
+
 def slim_close(close: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for k in KEEP_CLOSE_TOP:
         if k in close:
             out[k] = close[k]
     basis_in = close.get("basis")
+    basis: dict[str, Any] = {}
     if isinstance(basis_in, dict):
-        basis: dict[str, Any] = {}
-        for k in KEEP_BASIS:
-            if k in basis_in:
-                basis[k] = basis_in[k]
-        out["basis"] = basis
-    # Keep empty placeholders so close-key agreement still sees the minepoa key set.
-    # Full payloads stay on origin; commented PHP paths can restore heavy passthrough later.
+        if "pending" in basis_in:
+            basis["pending"] = slim_pending_map(basis_in.get("pending"))
+        if "settled" in basis_in:
+            basis["settled"] = slim_settled_list(basis_in.get("settled"))
+        # Counts-only for bulky side maps (reports only needs len()).
+        for k in ("established_after", "attestations"):
+            v = basis_in.get(k)
+            if isinstance(v, list):
+                basis[k] = [None] * len(v)  # preserve count, drop payloads
+            elif isinstance(v, dict):
+                basis[k] = {str(i): None for i in range(len(v))}
+            elif v is not None:
+                basis[k] = v
+        fp = basis_in.get("final_payout")
+        if isinstance(fp, dict):
+            capped = fp.get("capped")
+            n = len(capped) if isinstance(capped, (list, dict)) else 0
+            basis["final_payout"] = {"capped": [None] * n}
+        elif fp is not None:
+            basis["final_payout"] = fp
+    out["basis"] = basis
+    if "rewards" in close:
+        out["rewards"] = slim_rewards(close.get("rewards"))
+    else:
+        out["rewards"] = []
+    # Placeholders so close-key agreement still sees the minepoa key set.
     for heavy in ("challenges", "propagation", "weights"):
-        out[heavy] = [] if heavy != "propagation" else {}
-        if isinstance(close.get(heavy), dict):
+        val = close.get(heavy)
+        if isinstance(val, dict):
             out[heavy] = {}
-        elif isinstance(close.get(heavy), list):
+        else:
             out[heavy] = []
     return out
 
 
-def write_sqlite(db_path: str, closes: list[dict[str, Any]]) -> dict[str, int]:
+def write_sqlite_streaming(
+    db_path: str,
+    closes_iter: Iterator[dict[str, Any]],
+    jsonl_path: str = "",
+) -> dict[str, int]:
+    """Insert one slim close at a time — never hold the full close list."""
     os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
     tmp = db_path + ".tmp"
     if os.path.exists(tmp):
         os.unlink(tmp)
+    jsonl_tmp = (jsonl_path + ".tmp") if jsonl_path else ""
+    if jsonl_tmp and os.path.exists(jsonl_tmp):
+        os.unlink(jsonl_tmp)
     conn = sqlite3.connect(tmp)
+    n_closes = 0
+    n_settled = 0
+    jl = open(jsonl_tmp, "w", encoding="utf-8") if jsonl_tmp else None
     try:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute(
@@ -283,12 +396,8 @@ def write_sqlite(db_path: str, closes: list[dict[str, Any]]) -> dict[str, int]:
             "passed INTEGER,"
             "PRIMARY KEY (answer_txid, close_epoch))"
         )
-        conn.execute(
-            "CREATE INDEX settled_answer ON settled(answer_txid)"
-        )
-        n_settled = 0
-        for c in closes:
-            # epoch 0 is valid — do not use `or -1` (0 is falsy in Python).
+        conn.execute("CREATE INDEX settled_answer ON settled(answer_txid)")
+        for c in closes_iter:
             if "epoch" not in c or c.get("epoch") is None:
                 continue
             try:
@@ -298,11 +407,21 @@ def write_sqlite(db_path: str, closes: list[dict[str, Any]]) -> dict[str, int]:
             if epoch < 0:
                 continue
             ts = c.get("ts")
-            ts_i = int(ts) if isinstance(ts, (int, float)) or (isinstance(ts, str) and ts.isdigit()) else None
+            ts_i = (
+                int(ts)
+                if isinstance(ts, (int, float))
+                or (isinstance(ts, str) and ts.isdigit())
+                else None
+            )
+            payload = json.dumps(c, separators=(",", ":"), ensure_ascii=False)
             conn.execute(
                 "INSERT OR REPLACE INTO closes(epoch, ts, json) VALUES (?,?,?)",
-                (epoch, ts_i, json.dumps(c, separators=(",", ":"), ensure_ascii=False)),
+                (epoch, ts_i, payload),
             )
+            if jl is not None:
+                jl.write(payload)
+                jl.write("\n")
+            n_closes += 1
             settled = (c.get("basis") or {}).get("settled") if isinstance(c.get("basis"), dict) else None
             if not isinstance(settled, list):
                 continue
@@ -320,11 +439,23 @@ def write_sqlite(db_path: str, closes: list[dict[str, Any]]) -> dict[str, int]:
                     (aid, epoch, ts_i, s.get("from"), passed_i),
                 )
                 n_settled += 1
+            if n_closes % 5 == 0:
+                conn.commit()
         conn.commit()
     finally:
         conn.close()
+        if jl is not None:
+            jl.close()
+    if n_closes == 0:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        if jsonl_tmp and os.path.exists(jsonl_tmp):
+            os.unlink(jsonl_tmp)
+        raise ValueError("no close records after strip (empty or paused origin)")
     os.replace(tmp, db_path)
-    return {"closes": len(closes), "settled_rows": n_settled}
+    if jsonl_tmp:
+        os.replace(jsonl_tmp, jsonl_path)
+    return {"closes": n_closes, "settled_rows": n_settled}
 
 
 def main() -> int:
@@ -338,22 +469,11 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    closes: list[dict[str, Any]] = []
-    for obj in iter_top_array_objects(args.raw_json):
-        closes.append(slim_close(obj))
-    if not closes:
-        raise ValueError("no close records after strip (empty or paused origin)")
-    closes.sort(key=lambda c: int(c.get("epoch") or 0))
+    def gen() -> Iterator[dict[str, Any]]:
+        for obj in iter_top_array_objects(args.raw_json):
+            yield slim_close(obj)
 
-    stats = write_sqlite(args.sqlite_out, closes)
-    if args.slim_jsonl:
-        tmp = args.slim_jsonl + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as out:
-            for c in closes:
-                out.write(json.dumps(c, separators=(",", ":"), ensure_ascii=False))
-                out.write("\n")
-        os.replace(tmp, args.slim_jsonl)
-
+    stats = write_sqlite_streaming(args.sqlite_out, gen(), args.slim_jsonl or "")
     print(
         json.dumps(
             {

@@ -40,7 +40,8 @@ function poa_store_pdo(): ?PDO
 
 function poa_store_present(): bool
 {
-    return is_file(poa_store_path()) && is_file(poa_store_jsonl_path());
+    $p = poa_store_path();
+    return is_file($p) && filesize($p) > 0;
 }
 
 function poa_store_mtime(): ?int
@@ -56,6 +57,18 @@ function poa_store_mtime(): ?int
 /** @return list<array<string,mixed>> */
 function poa_store_load_slim_closes(): array
 {
+    // Prefer SQLite (ordered by epoch). JSONL is optional legacy.
+    $pdo = poa_store_pdo();
+    if ($pdo instanceof PDO) {
+        $out = [];
+        foreach ($pdo->query('SELECT json FROM closes ORDER BY epoch ASC') as $row) {
+            $decoded = json_decode((string) ($row['json'] ?? ''), true);
+            if (is_array($decoded)) {
+                $out[] = $decoded;
+            }
+        }
+        return $out;
+    }
     $path = poa_store_jsonl_path();
     if (!is_file($path)) {
         return [];

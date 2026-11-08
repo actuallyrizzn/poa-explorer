@@ -1434,10 +1434,11 @@ function poa_refresh_derived(bool $force = false): array
                 }
             }
         }
+        $deleteRaw = false;
         if (is_string($fromFile) && $fromFile !== '' && is_file($fromFile)) {
-            if (!@copy($fromFile, $raw)) {
-                return poa_wrap(['_error' => 'could not copy --from-file into temp', '_status' => 0]);
-            }
+            // Use bootstrap path in place — never copy a 300MiB blob on a 1GB box.
+            $raw = $fromFile;
+            $deleteRaw = false;
         } else {
             $url = poa_origin() . '/api/epochs';
             $ctx = stream_context_create([
@@ -1449,44 +1450,49 @@ function poa_refresh_derived(bool $force = false): array
                 ],
                 'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
             ]);
-            $rawBytes = @file_get_contents($url, false, $ctx);
+            // Stream to disk — never hold the full origin body in PHP.
+            $in = @fopen($url, 'r', false, $ctx);
             $httpStatus = 0;
             if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $hm)) {
                 $httpStatus = (int) $hm[1];
             }
-            if ($rawBytes === false || $rawBytes === '') {
+            if ($in === false) {
                 return poa_wrap(['_error' => 'origin /api/epochs download failed', '_status' => $httpStatus]);
             }
             if ($httpStatus >= 400) {
+                $snip = stream_get_contents($in, 200) ?: '';
+                fclose($in);
                 return poa_wrap([
-                    '_error' => 'origin /api/epochs HTTP ' . $httpStatus . ': ' . substr($rawBytes, 0, 200),
+                    '_error' => 'origin /api/epochs HTTP ' . $httpStatus . ': ' . $snip,
                     '_status' => $httpStatus,
                 ]);
             }
-            $probe = json_decode($rawBytes, true);
-            if (is_array($probe) && isset($probe['error']) && !array_is_list($probe)) {
-                return poa_wrap([
-                    '_error' => 'origin /api/epochs paused/error: ' . (string) $probe['error'],
-                    '_status' => $httpStatus ?: 503,
-                ]);
-            }
-            unset($probe);
-            if (@file_put_contents($raw, $rawBytes) === false) {
+            $outFh = @fopen($raw, 'w');
+            if ($outFh === false) {
+                fclose($in);
                 return poa_wrap(['_error' => 'could not write epochs temp file', '_status' => 0]);
             }
-            unset($rawBytes);
+            stream_copy_to_stream($in, $outFh);
+            fclose($in);
+            fclose($outFh);
+            // Fail-closed on paused origin error object (small file).
+            $size = (int) filesize($raw);
+            if ($size > 0 && $size < 4096) {
+                $probe = json_decode((string) file_get_contents($raw), true);
+                if (is_array($probe) && isset($probe['error']) && !array_is_list($probe)) {
+                    @unlink($raw);
+                    return poa_wrap([
+                        '_error' => 'origin /api/epochs paused/error: ' . (string) $probe['error'],
+                        '_status' => $httpStatus ?: 503,
+                    ]);
+                }
+            }
+            $deleteRaw = true;
         }
 
         $bin = poa_stripper_bin();
         $sqlite = poa_store_path();
         $jsonl = poa_store_jsonl_path();
-        $cmd = escapeshellarg(PHP_BINARY === 'php' || PHP_BINARY === '' ? 'python3' : 'python3')
-            . ' ' . escapeshellarg($bin)
-            . ' ' . escapeshellarg($raw)
-            . ' ' . escapeshellarg($sqlite)
-            . ' --slim-jsonl ' . escapeshellarg($jsonl)
-            . ' 2>&1';
-        // Prefer python3 explicitly
         $cmd = 'python3 ' . escapeshellarg($bin)
             . ' ' . escapeshellarg($raw)
             . ' ' . escapeshellarg($sqlite)
@@ -1495,7 +1501,9 @@ function poa_refresh_derived(bool $force = false): array
         $out = [];
         $code = 0;
         exec($cmd, $out, $code);
-        @unlink($raw);
+        if ($deleteRaw) {
+            @unlink($raw);
+        }
         if ($code !== 0) {
             return poa_wrap([
                 '_error' => 'stripper failed: ' . implode("\n", $out),
