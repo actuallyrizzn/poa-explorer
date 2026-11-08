@@ -190,13 +190,8 @@ def _seek_body_array(f: TextIO) -> None:
 
 def _iter_array_objects(f: TextIO) -> Iterator[dict[str, Any]]:
     first = _skip_ws(f)
-    if first == "" or first == "]":
-        return
     if first != "[":
-        # Caller already positioned on '['; or we need to accept it.
-        if first != "[":
-            raise ValueError(f"expected JSON array, got {first!r}")
-    # We consumed '['; — walk elements
+        raise ValueError(f"expected JSON array, got {first!r}")
     while True:
         ch = _skip_ws(f)
         if ch == "" or ch == "]":
