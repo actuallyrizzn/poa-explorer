@@ -44,9 +44,48 @@ function poa_pending_birth_epoch(int $closeEpoch, $since): ?int
     return $closeEpoch - (int) $since;
 }
 
+function poa_store_pending_since_lookup(int $closeEpoch, string $answer): ?int
+{
+    $pdo = function_exists('poa_store_pdo') ? poa_store_pdo() : null;
+    if (!$pdo instanceof PDO) {
+        return null;
+    }
+    $st = $pdo->prepare('SELECT since FROM pending_since WHERE close_epoch = ? AND answer_txid = ?');
+    $st->execute([$closeEpoch, strtolower($answer)]);
+    $row = $st->fetch();
+    if (!$row || $row['since'] === null || $row['since'] === '') {
+        return null;
+    }
+    return (int) $row['since'];
+}
+
+/** @return array<string,array{since:?int}> */
+function poa_store_pending_map_for_close(int $epoch): array
+{
+    $pdo = function_exists('poa_store_pdo') ? poa_store_pdo() : null;
+    if (!$pdo instanceof PDO) {
+        return [];
+    }
+    $st = $pdo->prepare('SELECT answer_txid, since FROM pending_since WHERE close_epoch = ?');
+    $st->execute([$epoch]);
+    $out = [];
+    foreach ($st as $row) {
+        $aid = (string) ($row['answer_txid'] ?? '');
+        if ($aid === '') {
+            continue;
+        }
+        $out[$aid] = ['since' => $row['since'] === null ? null : (int) $row['since']];
+    }
+    return $out;
+}
+
 function poa_settled_birth_epoch(string $answer, int $closeEpoch, array $closesByEpoch): ?int
 {
     $prevN = $closeEpoch - 1;
+    $fromStore = poa_store_pending_since_lookup($prevN, $answer);
+    if ($fromStore !== null) {
+        return poa_pending_birth_epoch($prevN, $fromStore);
+    }
     if (!isset($closesByEpoch[$prevN])) {
         return null;
     }
@@ -153,9 +192,12 @@ function poa_close_settlement_row(array $close, array $closesByEpoch): array
     $n = (int) ($close['epoch'] ?? -1);
     $pending = is_array($close['basis']['pending'] ?? null) ? $close['basis']['pending'] : [];
     $settled = is_array($close['basis']['settled'] ?? null) ? $close['basis']['settled'] : [];
-    // Lean store keeps settled in SQLite only (close JSON has []).
+    // Lean store keeps settled + historical pending.since in SQLite.
     if ($settled === [] && $n >= 0) {
         $settled = poa_store_settled_for_close($n);
+    }
+    if ($pending === [] && $n >= 0) {
+        $pending = poa_store_pending_map_for_close($n);
     }
     $rewards = is_array($close['rewards'] ?? null) ? $close['rewards'] : [];
     $established = is_array($close['basis']['established_after'] ?? null) ? $close['basis']['established_after'] : [];

@@ -1230,9 +1230,109 @@ function poa_write_derived_from_epochs(
     $last = poa_latest_close($epochsBody);
     @file_put_contents(poa_derived_file('reports'), json_encode($reports, JSON_UNESCAPED_SLASHES));
     @file_put_contents(poa_derived_file('last-close'), json_encode($last, JSON_UNESCAPED_SLASHES));
-    // Legacy 27 MiB settled-index JSON write — commented (SQLite settled table replaces it).
-    // $settled = poa_settled_index_from_epochs($epochsBody);
-    // @file_put_contents(poa_derived_file('settled-index'), json_encode($settled, JSON_UNESCAPED_SLASHES));
+}
+
+/** Stream SQLite closes into derived reports/last-close. Returns close count. */
+function poa_write_derived_from_store(array $status, array $txs, array $anchors): int
+{
+    $dir = poa_cache_dir();
+    if (!is_dir($dir)) {
+        mkdir($dir, 0770, true);
+    }
+    $pdo = poa_store_pdo();
+    if (!$pdo instanceof PDO) {
+        poa_write_derived_from_epochs([], $status, $txs, $anchors);
+        return 0;
+    }
+    $closesByEpoch = [];
+    $n = 0;
+    $last = null;
+    foreach ($pdo->query('SELECT epoch, json FROM closes ORDER BY epoch ASC') as $row) {
+        $close = json_decode((string) ($row['json'] ?? ''), true);
+        if (!is_array($close)) {
+            continue;
+        }
+        $epoch = (int) ($row['epoch'] ?? $close['epoch'] ?? -1);
+        // Keep only a stub in the index for agreement/network cadence — not full pending.
+        $closesByEpoch[$epoch] = [
+            'epoch' => $epoch,
+            'ts' => $close['ts'] ?? null,
+            'pool' => $close['pool'] ?? null,
+            'note' => $close['note'] ?? null,
+            'basis' => [
+                'pending' => [],
+                'settled' => [],
+                'established_after' => $close['basis']['established_after'] ?? [],
+                'attestations' => $close['basis']['attestations'] ?? null,
+                'final_payout' => $close['basis']['final_payout'] ?? null,
+            ],
+            'rewards' => $close['rewards'] ?? [],
+            'weights' => $close['weights'] ?? [],
+            'challenges' => $close['challenges'] ?? [],
+            'propagation' => $close['propagation'] ?? [],
+        ];
+        // Settlement row uses SQLite for settled + pending_since; pass stub index.
+        $closesByEpoch[$epoch]['_settlement_row'] = poa_close_settlement_row($close, $closesByEpoch);
+        $last = $close;
+        $n++;
+        unset($close);
+    }
+    ksort($closesByEpoch);
+    $settlementRows = [];
+    foreach ($closesByEpoch as $epoch => $stub) {
+        $settlementRows[] = $stub['_settlement_row'];
+        unset($closesByEpoch[$epoch]['_settlement_row']);
+    }
+    $latestPanel = null;
+    if ($settlementRows) {
+        $latest = $settlementRows[array_key_last($settlementRows)];
+        $latestPanel = $latest['panel'] ?? null;
+        if (is_array($latestPanel)) {
+            $latestPanel['as_of_epoch'] = $latest['epoch'] ?? null;
+            $latestPanel['as_of_ts'] = $latest['ts'] ?? null;
+            $latestPanel['source'] = 'last-close basis.pending on GET /api/epochs — snapshot, not a live jury';
+        }
+    }
+    $reports = [
+        'bounds' => [
+            'public_data_only' => true,
+            'no_hosted' => true,
+            'no_wallet' => true,
+            'no_locked_spendable_split' => true,
+            'no_forecasts' => true,
+        ],
+        'network' => poa_reports_network($status, $txs, $anchors, $closesByEpoch),
+        'settlement' => [
+            'source' => 'minepoa GET /api/epochs basis.pending / basis.settled / rewards',
+            'test_case' => 'Epoch 8 close should show settled=345 and birth-epoch 3 settled=0 (LabLeak thread 1489 / Copperwick).',
+            'rows' => $settlementRows,
+        ],
+        'grading_backlog' => $latestPanel,
+        'panel_by_close' => array_map(static function ($row) {
+            return [
+                'epoch' => $row['epoch'],
+                'ts' => $row['ts'],
+                'panel' => $row['panel'],
+            ];
+        }, $settlementRows),
+        'payouts' => array_map(static function ($row) {
+            return [
+                'epoch' => $row['epoch'],
+                'ts' => $row['ts'],
+                'established_after' => $row['established_after'],
+                'paid' => $row['paid'],
+                'final_payout_capped_addresses' => $row['final_payout_capped_addresses'],
+                'paid_note' => $row['paid_note'],
+            ];
+        }, $settlementRows),
+        'close_agreement' => poa_reports_agreement($closesByEpoch),
+    ];
+    @file_put_contents(poa_derived_file('reports'), json_encode($reports, JSON_UNESCAPED_SLASHES));
+    if ($last === null) {
+        $last = poa_store_latest_close();
+    }
+    @file_put_contents(poa_derived_file('last-close'), json_encode($last, JSON_UNESCAPED_SLASHES));
+    return $n;
 }
 
 function poa_prune_origin_cache(int $maxAge = 7200, int $maxDelete = 1500): void
@@ -1513,30 +1613,14 @@ function poa_refresh_derived(bool $force = false): array
             ]);
         }
 
-        // Build reports one close at a time so PHP stays under the 192M CLI cap.
         $txs = poa_recent_txs_row();
         $anchors = poa_anchors_row();
-        $epochsBody = [];
-        $pdo = poa_store_pdo();
-        if ($pdo instanceof PDO) {
-            foreach ($pdo->query('SELECT json FROM closes ORDER BY epoch ASC') as $row) {
-                $decoded = json_decode((string) ($row['json'] ?? ''), true);
-                if (is_array($decoded)) {
-                    $epochsBody[] = $decoded;
-                }
-            }
-        } else {
-            $epochsBody = poa_store_load_slim_closes();
-        }
-        poa_write_derived_from_epochs(
-            $epochsBody,
+        // Stream closes from SQLite — never hold the full list (tip pending alone can be large).
+        $closeCount = poa_write_derived_from_store(
             is_array($status['body']) ? $status['body'] : [],
             is_array($txs['body']) ? $txs['body'] : [],
             is_array($anchors['body']) ? $anchors['body'] : []
         );
-        // Drop the in-memory close list before any further work.
-        $closeCount = count($epochsBody);
-        unset($epochsBody);
         // Stop writing the 27 MiB settled-index JSON when SQLite has it.
         // Legacy file left in place if present; new runs skip rewrite via empty unlink intent:
         $legacySettled = poa_derived_file('settled-index');

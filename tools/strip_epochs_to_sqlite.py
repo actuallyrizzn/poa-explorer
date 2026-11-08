@@ -270,31 +270,40 @@ def slim_grades(grades: Any) -> Any:
     return out
 
 
-def slim_pending_map(pending: Any, *, keep_panel: bool = False) -> dict[str, Any]:
-    """Keep since/kind for reports; panel seats only when keep_panel (last close)."""
+def slim_pending_map(pending: Any, *, keep_detail: bool = False) -> tuple[dict[str, Any], list[tuple[str, int | None]]]:
+    """Return (close_pending_map, pending_since_rows).
+
+    Historical closes store an empty pending map in JSON; since values go to the
+    pending_since table. The latest close may keep a compact detail map for the
+    pending HTML page (kind/panel_size/grades only — no seat lists).
+    """
     if not isinstance(pending, dict):
-        return {}
-    out: dict[str, Any] = {}
+        return {}, []
+    detail: dict[str, Any] = {}
+    since_rows: list[tuple[str, int | None]] = []
     for aid, p in pending.items():
         if not isinstance(p, dict):
             continue
-        row: dict[str, Any] = {}
-        for k in ("kind", "since", "originalPassed"):
-            if k in p:
-                row[k] = p[k]
-        panel = p.get("panel")
-        size = len(panel) if isinstance(panel, list) else 0
-        row["panel_size"] = size
-        if keep_panel:
-            row["panel"] = slim_panel(panel)
-        else:
-            row["panel"] = []
-        grades = slim_grades(p.get("grades")) if "grades" in p else None
-        if grades is not None:
-            row["grades"] = grades
-            row["grades_count"] = len(grades) if isinstance(grades, list) else None
-        out[str(aid)] = row
-    return out
+        aid_s = str(aid)
+        since = p.get("since")
+        since_i = int(since) if isinstance(since, (int, float)) or (isinstance(since, str) and str(since).lstrip("-").isdigit()) else None
+        since_rows.append((aid_s.lower() if len(aid_s) == 64 else aid_s, since_i))
+        if keep_detail:
+            panel = p.get("panel")
+            size = len(panel) if isinstance(panel, list) else 0
+            row: dict[str, Any] = {
+                "kind": p.get("kind"),
+                "since": since_i,
+                "originalPassed": p.get("originalPassed"),
+                "panel_size": size,
+                "panel": [],
+            }
+            grades = slim_grades(p.get("grades")) if "grades" in p else None
+            if grades is not None:
+                row["grades"] = grades
+                row["grades_count"] = len(grades) if isinstance(grades, list) else None
+            detail[aid_s] = row
+    return detail, since_rows
 
 
 def slim_settled_list(settled: Any) -> list[dict[str, Any]]:
@@ -326,21 +335,21 @@ def slim_close(close: dict[str, Any]) -> dict[str, Any]:
             out[k] = close[k]
     basis_in = close.get("basis")
     basis: dict[str, Any] = {}
+    detail: dict[str, Any] = {}
+    since_rows: list[tuple[str, int | None]] = []
+    extracted: list[dict[str, Any]] = []
     if isinstance(basis_in, dict):
-        if "pending" in basis_in:
-            # Panel seat lists are the bulk; keep size + grades only. Pending HTML
-            # joins authors from challenge-index; panel_size drives backlog charts.
-            basis["pending"] = slim_pending_map(basis_in.get("pending"), keep_panel=False)
-        # Settled payloads go only to the settled table (see write_sqlite_streaming).
-        if "settled" in basis_in:
-            basis["settled"] = []
-            # Stash for the writer without embedding in close JSON:
-            # write_sqlite_streaming reads _settled_rows if present.
-        # Counts-only for bulky side maps (reports only needs len()).
+        detail, since_rows = slim_pending_map(
+            basis_in.get("pending") if "pending" in basis_in else {},
+            keep_detail=True,
+        )
+        # Empty in stored JSON; writer reattaches detail onto the tip close only.
+        basis["pending"] = {}
+        basis["settled"] = []
         for k in ("established_after", "attestations"):
             v = basis_in.get(k)
             if isinstance(v, list):
-                basis[k] = [None] * len(v)  # preserve count, drop payloads
+                basis[k] = [None] * len(v)
             elif isinstance(v, dict):
                 basis[k] = {str(i): None for i in range(len(v))}
             elif v is not None:
@@ -352,18 +361,18 @@ def slim_close(close: dict[str, Any]) -> dict[str, Any]:
             basis["final_payout"] = {"capped": [None] * n}
         elif fp is not None:
             basis["final_payout"] = fp
+        settled_src = basis_in.get("settled")
+        if isinstance(settled_src, list):
+            for s in settled_src:
+                if not isinstance(s, dict):
+                    continue
+                row = {k: s[k] for k in ("answer", "from", "passed") if k in s}
+                if row.get("answer"):
+                    extracted.append(row)
     out["basis"] = basis
-    # Extract settled for the table; never embed the fat list in close JSON.
-    settled_src = basis_in.get("settled") if isinstance(basis_in, dict) else None
-    extracted: list[dict[str, Any]] = []
-    if isinstance(settled_src, list):
-        for s in settled_src:
-            if not isinstance(s, dict):
-                continue
-            row = {k: s[k] for k in ("answer", "from", "passed") if k in s}
-            if row.get("answer"):
-                extracted.append(row)
     out["_settled_rows"] = extracted
+    out["_pending_since"] = since_rows
+    out["_pending_detail"] = detail
     if "rewards" in close:
         out["rewards"] = slim_rewards(close.get("rewards"))
     else:
@@ -394,6 +403,10 @@ def write_sqlite_streaming(
     conn = sqlite3.connect(tmp)
     n_closes = 0
     n_settled = 0
+    n_pending = 0
+    tip_epoch: int | None = None
+    tip_detail: dict[str, Any] = {}
+    tip_base: dict[str, Any] | None = None
     jl = open(jsonl_tmp, "w", encoding="utf-8") if jsonl_tmp else None
     try:
         conn.execute("PRAGMA journal_mode=WAL")
@@ -413,6 +426,16 @@ def write_sqlite_streaming(
             "PRIMARY KEY (answer_txid, close_epoch))"
         )
         conn.execute("CREATE INDEX settled_answer ON settled(answer_txid)")
+        conn.execute(
+            "CREATE TABLE pending_since ("
+            "close_epoch INTEGER NOT NULL,"
+            "answer_txid TEXT NOT NULL,"
+            "since INTEGER,"
+            "PRIMARY KEY (close_epoch, answer_txid))"
+        )
+        conn.execute(
+            "CREATE INDEX pending_since_answer ON pending_since(answer_txid, close_epoch)"
+        )
         for c in closes_iter:
             if "epoch" not in c or c.get("epoch") is None:
                 continue
@@ -429,9 +452,15 @@ def write_sqlite_streaming(
                 or (isinstance(ts, str) and ts.isdigit())
                 else None
             )
-            settled = c.pop("_settled_rows", None)
+            settled = c.pop("_settled_rows", None) or []
+            since_rows = c.pop("_pending_since", None) or []
+            detail = c.pop("_pending_detail", None) or {}
             if not isinstance(settled, list):
                 settled = []
+            if not isinstance(since_rows, list):
+                since_rows = []
+            if not isinstance(detail, dict):
+                detail = {}
             payload = json.dumps(c, separators=(",", ":"), ensure_ascii=False)
             conn.execute(
                 "INSERT OR REPLACE INTO closes(epoch, ts, json) VALUES (?,?,?)",
@@ -441,6 +470,10 @@ def write_sqlite_streaming(
                 jl.write(payload)
                 jl.write("\n")
             n_closes += 1
+            if tip_epoch is None or epoch >= tip_epoch:
+                tip_epoch = epoch
+                tip_detail = detail
+                tip_base = c
             for s in settled:
                 if not isinstance(s, dict):
                     continue
@@ -455,8 +488,29 @@ def write_sqlite_streaming(
                     (aid, epoch, ts_i, s.get("from"), passed_i),
                 )
                 n_settled += 1
+            for aid, since_i in since_rows:
+                aid_s = str(aid or "")
+                if not aid_s:
+                    continue
+                conn.execute(
+                    "INSERT OR REPLACE INTO pending_since(close_epoch, answer_txid, since) VALUES (?,?,?)",
+                    (epoch, aid_s.lower() if len(aid_s) == 64 else aid_s, since_i),
+                )
+                n_pending += 1
             if n_closes % 5 == 0:
                 conn.commit()
+        # Reattach compact pending detail onto the tip close only (pending HTML / last-close).
+        if tip_epoch is not None and tip_base is not None and tip_detail:
+            tip_base = json.loads(
+                conn.execute("SELECT json FROM closes WHERE epoch = ?", (tip_epoch,)).fetchone()[0]
+            )
+            tip_base.setdefault("basis", {})["pending"] = tip_detail
+            tip_base.setdefault("basis", {})["settled"] = []
+            tip_payload = json.dumps(tip_base, separators=(",", ":"), ensure_ascii=False)
+            conn.execute(
+                "UPDATE closes SET json = ? WHERE epoch = ?",
+                (tip_payload, tip_epoch),
+            )
         conn.commit()
     finally:
         conn.close()
@@ -471,7 +525,13 @@ def write_sqlite_streaming(
     os.replace(tmp, db_path)
     if jsonl_tmp:
         os.replace(jsonl_tmp, jsonl_path)
-    return {"closes": n_closes, "settled_rows": n_settled}
+    return {
+        "closes": n_closes,
+        "settled_rows": n_settled,
+        "pending_since_rows": n_pending,
+        "tip_epoch": tip_epoch,
+    }
+
 
 
 def main() -> int:
