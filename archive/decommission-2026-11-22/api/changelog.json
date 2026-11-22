@@ -1,0 +1,95 @@
+[
+    {
+        "version": "0.7.0",
+        "date": "2026-11-08",
+        "changes": [
+            "Lean rework (PRD #1676): CLI stream-strips /api/epochs into SQLite; PHP never json_decodes the full blob on FPM or cron.",
+            "GET /api/epochs.php is windowed (last 30 slim closes) or ?mode=catalog; /api/close.php reads SQLite by epoch. Full-blob FPM path commented out, not deleted.",
+            "Tip-gated heavy cron + separate refresh-light.php for health/market. memory_limit 192M hard, no bump. Health HTML/API read derived file only \u2014 no lock-across-I/O.",
+            "Cache denylist for large origin payloads; dir cap + GC. Rate limits from 0.6.1 unchanged."
+        ]
+    },
+    {
+        "version": "0.6.1",
+        "date": "2026-11-07",
+        "changes": [
+            "App rate limits on expensive paths (per IP, uniform \u2014 bots/agents are intended users): HTML tx/address/search 12/min, health 6/min, API tx/address 60/min. Over \u2192 429 + Retry-After. Counter flock is short \u2014 never held across origin I/O.",
+            "robots.txt Allows / for all user-agents (no path or UA Disallow). Protection is rate limits, not robots exclusion.",
+            "Homepage health banner is cache-only (no lock-health / origin poll from every HTML page)."
+        ]
+    },
+    {
+        "version": "0.6.0",
+        "date": "2026-10-28",
+        "changes": [
+            "Health probes: homepage banner + /health.php + GET /api/health.php. Read-only checks of status, tx lookup, epochs snapshot, anchors, settlement freshness, seals, swap reads, and publicly readable swap-write state. Overall OK/Partial/Down with down-since times.",
+            "OTC book: /market.php + GET /api/market.php. poaswap.io posted intents (not an AMM). Per-pair best offer and last trade, POA/SOL primary, implied USD from a cached CoinGecko SOL/ETH rate. History stores best-offer and last-trade as separate series. Copy never treats this as a live market price."
+        ]
+    },
+    {
+        "version": "0.5.1",
+        "date": "2026-10-27",
+        "changes": [
+            "Reports charts draw with inline stroke and size so they stay visible if an old stylesheet is cached. Single-series chart labels no longer read \u201cand over closes.\u201d CSS is cache-busted by API version."
+        ]
+    },
+    {
+        "version": "0.5.0",
+        "date": "2026-10-27",
+        "changes": [
+            "Reports UI: headline deltas, inline SVG trends (last 30 closes), one-close cohort drill-down (?epoch=), still-pending birth\u00d7close grid. No Chart.js. JSON /api/reports.php body unchanged."
+        ]
+    },
+    {
+        "version": "0.4.2",
+        "date": "2026-10-27",
+        "changes": [
+            "Derived epochs snapshot (last close, settled index, reports body) is built by CLI cron, not on visit. Address, pending, and Reports only read that snapshot. Missing or stale is labeled."
+        ]
+    },
+    {
+        "version": "0.4.1",
+        "date": "2026-10-27",
+        "changes": [
+            "Address, pending, and Reports no longer decode the full 18MB /api/epochs blob on every hit. One worker builds a slim derived cache (last close, settled index, reports body); other pages read that.",
+            "Epochs fetch is file-locked and allowed 384M for that parse only, so a crawler storm cannot OOM the shared 128M PHP-FPM pool."
+        ]
+    },
+    {
+        "version": "0.4.0",
+        "date": "2026-10-27",
+        "changes": [
+            "Reports tab + GET /api/reports.php: settlement by birth cohort, network-wide grading backlog, stats strip, close-key agreement, establishment/payouts. Public data only.",
+            "Birth epoch for settled rows is prior-close pending.since (prior_epoch \u2212 since). Still-pending uses this close epoch \u2212 since. Live challenge-index epoch is not used for historical rows."
+        ]
+    },
+    {
+        "version": "0.3.1",
+        "date": "2026-10-27",
+        "changes": [
+            "Pending rows pass through public close grades as [{score, ts, grader}] when the field exists. Empty list means zero seals in that snapshot. Missing field stays null with a note. Quorum is still not on public pending rows.",
+            "Pending rows add answer_txid (the 64-hex answer id, which resolves as a challenge tx).",
+            "Address grading joins this account\u2019s challenge txs to last-close pending and to settled rows across closes by that answer txid."
+        ]
+    },
+    {
+        "version": "0.3.0",
+        "date": "2026-10-26",
+        "changes": [
+            "Envelope adds version (additive). Existing ok/error/cache/body unchanged.",
+            "GET /api/changelog.php \u2014 this list.",
+            "GET /api/epochs.php body is the minepoa /api/epochs close list with the same field names and timestamps (epoch, ts, pool, note, basis, weights, challenges, propagation, rewards).",
+            "GET /api/close.php?epoch=N \u2014 one of those close objects, same keys.",
+            "GET /api/pending.php \u2014 last-close basis.pending joined to challenge-index authors. Panel size and since (age). Grades and quorum are not on the public pending snapshot; those columns stay empty and labeled.",
+            "Address JSON may include additive grading (pending counts, grade-sealed txs, last-close jury/grader rows). Origin account fields unchanged.",
+            "Stdio MCP server: mcp/server.py (JSON-RPC, no extra packages). SMCP plugin still ships."
+        ]
+    },
+    {
+        "version": "0.2.0",
+        "date": "2026-10-26",
+        "changes": [
+            "Initial public explorer: status, txs, tx, address, anchors, epochs, challenges, OpenAPI, Python/PHP SDKs, SMCP plugin."
+        ]
+    }
+]

@@ -1,0 +1,11 @@
+archived_at=2026-11-22T01:39:24Z
+host=multihost
+site=poa.explorer.zero1.network
+repo=actuallyrizzn/poa-explorer
+deployed_rev=93118d5669c84116899f211c6db8346178cc7920
+4.0K	/tmp/poa-decommission-archive-2026-11-22/MANIFEST.txt
+76K	/tmp/poa-decommission-archive-2026-11-22/api
+612K	/tmp/poa-decommission-archive-2026-11-22/cache
+313M	/tmp/poa-decommission-archive-2026-11-22/epochs-full.json.bak.20261108
+12K	/tmp/poa-decommission-archive-2026-11-22/meta
+17

@@ -1,0 +1,1 @@
+{"_error":null,"_cache":"fresh","_path":"/chain/poa-mainnet-1/api/status","_status":200,"body":{"checkpoint":{"height":1445570,"cutoff_ts":1795306730},"network":"PoA prototype","K":5,"open_ballots":0,"chain_id":"poa-mainnet-1","supply":"66978581556.207388","txs":5069,"final":5062,"invalid":0,"agents_joined":10000,"epochs_closed":111,"holders":5325}}

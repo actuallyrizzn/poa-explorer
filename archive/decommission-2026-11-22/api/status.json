@@ -1,0 +1,25 @@
+{
+    "_error": null,
+    "_cache": "fresh",
+    "_path": "/api/status",
+    "_status": 200,
+    "body": {
+        "network": "PoA prototype",
+        "K": 5,
+        "supply": "66978581556.207388",
+        "txs": 5062,
+        "final": 4947,
+        "invalid": 0,
+        "agents_joined": 10000,
+        "epochs_closed": 111,
+        "holders": 5325,
+        "as_of": "2026-11-22T01:39:06.993Z",
+        "checkpoint_height": 1445570,
+        "state_root": "19a5418835bb3f48ad06a1cca17079c0810d0753c36261ab36061b970ff2f943",
+        "chain_id": "poa-mainnet-1",
+        "checkpoint": {
+            "height": 1445570,
+            "cutoff_ts": 1795306730
+        }
+    }
+}

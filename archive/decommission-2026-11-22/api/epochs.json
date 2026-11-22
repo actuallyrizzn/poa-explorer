@@ -1,0 +1,7 @@
+{
+    "_error": "Epoch slim store is not on disk yet. CLI cron builds it; this path does not fetch full /api/epochs.",
+    "_cache": "miss",
+    "_status": 0,
+    "body": null,
+    "_path": ""
+}
